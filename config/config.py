@@ -6,7 +6,7 @@ fcn_model_config={
     "modelName":"fcn",
     'n_class':2,
     'pre_model_path':None,# 预加载模型
-    "learn_rate":0.01,
+    "learn_rate":0.1,
     'E512Step':30,
     "maxepoch":200,
     'optimizer':"SGD",

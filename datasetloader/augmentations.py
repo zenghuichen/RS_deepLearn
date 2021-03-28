@@ -2,7 +2,7 @@
 图像预处理模块
 This code is partially adapted from ESANet
 '''
-import cv2
+#import cv2
 import matplotlib
 import matplotlib.colors
 import numpy as np
@@ -10,7 +10,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from tqdm import tqdm
-
+from sklearn.preprocessing import normalize
 class RandomCrop:
     '''
     随机裁剪
@@ -68,16 +68,18 @@ class Normalize:
     数据归一化，将数据归一化到的[-1,1]之间，平均值为0
 
     '''
-    def __init__(self):
+    def __init__(self,meanArr,stdArr):
+        self.mean_arr=np.array(meanArr)
+        self.std_arr= np.array(stdArr)
         pass
 
     def __call__(self, sample):
         image,seg,label=sample['img'], sample['seg'], sample['label']
-        # 
+        image=image*0.0001
+        # 数据正则化
         sample['img']=image
         sample['seg']=seg
         sample['label']=label
-
         return sample
 
 class ToTensor:

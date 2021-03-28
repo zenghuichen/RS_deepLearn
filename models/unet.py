@@ -1,6 +1,6 @@
 import torch.nn as nn
 
-from ptsemseg.models.utils import *
+from models.utils import *
 
 class unet(nn.Module):
 

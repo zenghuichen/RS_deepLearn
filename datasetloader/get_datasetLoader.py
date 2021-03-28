@@ -22,14 +22,14 @@ def get_dataset(datasetName,dataSize='E256',batch_size=4,cropsize=(256,256),num_
     E_path=dataset_path[dataSize]
     # 处理train训练数据集
     # 构建对应的数据结构
-    train_transpose=get_augmentations("train",cropsize=cropsize)
+    train_transpose=get_augmentations("train",cropsize,dataset_path)
     E_train=gfNanChangDataset(E_path,splitchar='train',augmentations=train_transpose) 
     # 处理val数据集
-    val_transpose=get_augmentations("val",cropsize=cropsize)
+    val_transpose=get_augmentations("val",cropsize,dataset_path)
     E_val=gfNanChangDataset(E_path,splitchar='val',augmentations=val_transpose) 
     
     # 处理test数据集
-    test_transpose=get_augmentations('test',cropsize=cropsize)
+    test_transpose=get_augmentations('test',cropsize,dataset_path)
     E_test=gfNanChangDataset(E_path,splitchar='test',augmentations=test_transpose) 
 
     # 创建对应的加载数据集   
@@ -39,7 +39,7 @@ def get_dataset(datasetName,dataSize='E256',batch_size=4,cropsize=(256,256),num_
     
     return E_train_loader,E_val_loader,E_test_loader
 
-def get_augmentations(split,cropsize):
+def get_augmentations(split,cropsize,E_path):
     '''
     split 字符结构
     '''
@@ -48,7 +48,7 @@ def get_augmentations(split,cropsize):
         pre_train_list=[
             RandomCrop(H_,W_),
             RandomFlip(),
-            Normalize(),
+            Normalize(E_path["mean"],E_path["std"]),
             ToTensor() ]
 
         dataset_transpose=transforms.Compose(pre_train_list)
@@ -57,7 +57,7 @@ def get_augmentations(split,cropsize):
         pre_val_list=[ 
             #RandomCrop(H_,W_),
             #RandomFlip(),
-            Normalize(),
+            Normalize(E_path["mean"],E_path["std"]),
             ToTensor() ]
         dataset_transpose=transforms.Compose(pre_val_list)
     return dataset_transpose

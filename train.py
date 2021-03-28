@@ -11,12 +11,21 @@ import time
 from utils.metrics import runningScore
 from utils.loss import get_lossfunction
 from torchvision.utils import make_grid
+import os
 
 def loadconfig(config_param):
     '''
     初始化数据结构
     '''
-    
+    if not config_param["writerpath"] is None and  not os.path.exists(config_param["writerpath"]):
+        os.makedirs(config_param["writerpath"])
+
+    if not config_param["logpath"] is None and  not os.path.exists(config_param["logpath"]):
+        os.makedirs(config_param["logpath"])
+
+    if not config_param["checkpoint"] is None and  not os.path.exists(config_param["checkpoint"]):
+        os.makedirs(config_param["checkpoint"])
+
     # 构建数据集
     E_train_loader_256,E_val_loader_256,E_test_loader_256=get_dataset(datasetName=config_param["datasetName"],dataSize='E256',num_workers=config_param["num_work"]) 
     E_train_loader_512,E_val_loader_512,E_test_loader_512=get_dataset(datasetName=config_param["datasetName"],dataSize='E512',num_workers=config_param["num_work"]) 
@@ -27,7 +36,7 @@ def loadconfig(config_param):
     # 预加载模型
     startepoch=0
     best_iou=-1
-    if config_param['pre_model_path']:
+    if  not  config_param['pre_model_path'] is None:
         startepoch,model,optimizer,best_iou=load_ckpt(model, optimizer, config_param['pre_model_path'],'cuda')
     # 创建加载数据集
     datasetLoader={'E256':[E_train_loader_256,E_val_loader_256,E_test_loader_256],"E512":[E_train_loader_512,E_val_loader_512,E_test_loader_512]}
@@ -75,10 +84,10 @@ def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,log
         if i%image_step:
             grid_image = make_grid(image[:3].clone().cpu().data, 3, normalize=True)
             writer.add_image('trian_image', grid_image, global_step)
-            grid_image = make_grid(torch.max(outputs[:3], 1), 3, normalize=False,range=(0, 3))
+            grid_image = make_grid(torch.argmax(outputs[:3].clone().cpu().data, 1), 3, normalize=False,range=(0, 3))
             writer.add_image('train_Predicted_label', grid_image, global_step)
 
-            grid_image = make_grid(label[:3], 3, normalize=False, range=(0, 3))
+            grid_image = make_grid(label[:3].clone().cpu().data, 3, normalize=False, range=(0, 3))
             writer.add_image('train_Groundtruth_label', grid_image, global_step)
         global_step=global_step+1
 
@@ -130,9 +139,9 @@ def val(model,valloader,epoch,n_classes,lossfunction,logobject,muilt=True,global
             if i%image_step:
                 grid_image = make_grid(image[:3].clone().cpu().data, 3, normalize=True)
                 writer.add_image('val_image', grid_image, global_step)
-                grid_image = make_grid(torch.max(outputs[:3], 1), 3, normalize=False,range=(0, 3))
+                grid_image = make_grid(torch.argmax(outputs[:3].clone().cpu().data, 1), 3, normalize=False,range=(0, 3))
                 writer.add_image('val_Predicted_label', grid_image, global_step)
-                grid_image = make_grid(label[:3], 3, normalize=False, range=(0, 3))
+                grid_image = make_grid(label[:3].clone().cpu().data, 3, normalize=False, range=(0, 3))
                 writer.add_image('val_Groundtruth_label', grid_image, global_step)
             global_step=global_step+1
         print("epoch:{},times:{}".format(epoch,time.time()-start))
@@ -181,9 +190,9 @@ def test(model,testloader,epoch,lossfunction,logobject,muilt=True,global_step=0,
             if i%image_step:
                 grid_image = make_grid(image[:3].clone().cpu().data, 3, normalize=True)
                 writer.add_image('test_image', grid_image, global_step)
-                grid_image = make_grid(torch.max(outputs[:3], 1), 3, normalize=False,range=(0, 3))
+                grid_image = make_grid(torch.argmax(outputs[:3].clone().cpu().data, 1), 3, normalize=False,range=(0, 3))
                 writer.add_image('test_Predicted_label', grid_image, global_step)
-                grid_image = make_grid(label[:3], 3, normalize=False, range=(0, 3))
+                grid_image = make_grid(label[:3].clone().cpu().data, 3, normalize=False, range=(0, 3))
                 writer.add_image('test_Groundtruth_label', grid_image, global_step)
             global_step=global_step+1
 
