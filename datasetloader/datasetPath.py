@@ -19,6 +19,11 @@ def getRootdirFromDatasetName(datasetName):
                     "mean":[715.9553240254845,930.6206780785358,1712.7762373904623],
                     "std":[568.6019165870006,723.7178269465284,1298.1753111629348]},
 
+        'Frocodedtest':{'E256':"/media/gis/databackup/ayc/modellist/dataset/nanchang/E256/Frocodedtest",
+                    "E512":"/media/gis/databackup/ayc/modellist/dataset/nanchang/E512/Frocodedtest",
+                    "mean":[715.9553240254845,930.6206780785358,1712.7762373904623],
+                    "std":[568.6019165870006,723.7178269465284,1298.1753111629348]},
+
         'AllBands':{'E256':"/media/gis/databackup/ayc/modellist/dataset/nanchang/E256/AllBands",
                     "E512":"/media/gis/databackup/ayc/modellist/dataset/nanchang/E512/AllBands",
                     "mean":[715.9553240254845,930.6206780785358,928.8085351232722,1712.7762373904623],

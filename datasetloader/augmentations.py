@@ -75,12 +75,13 @@ class Normalize:
 
     def __call__(self, sample):
         image,seg,label=sample['img'], sample['seg'], sample['label']
-        image=image*0.0001
+        image=(image-self.mean_arr)/self.std_arr
         # 数据正则化
         sample['img']=image
         sample['seg']=seg
         sample['label']=label
         return sample
+
 
 class ToTensor:
     def __init__(self):

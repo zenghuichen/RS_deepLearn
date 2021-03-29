@@ -5,29 +5,58 @@ import torch.nn.functional as F
 
 
 
-def get_lossfunction(config_param):
-    if config_param['lossfunction']["name"]=='focalloss':
-        # {"name":"focalloss","gamma":0, "weight":None, 'size_average':True}
-        lossfunction=FocalLoss(gamma=config_param['lossfunction']['gamma'],weight=config_param['lossfunction']['weight'],size_average=config_param['lossfunction']['size_average'])
-    
-    return lossfunction
-
-
-class FocalLoss(nn.Module):
-    def __init__(self, gamma=0, weight=None, size_average=True):
-        super(FocalLoss, self).__init__()
-        self.gamma = gamma
+class SegmentationLosses(object):
+    def __init__(self, weight=None, size_average=True, batch_average=True, ignore_index=255, cuda=True):
+        self.ignore_index = ignore_index
+        self.weight = torch.from_numpy(np.array(weight)).float()
         self.size_average = size_average
-        if weight is None:
-            self.loss = nn.NLLLoss( size_average=self.size_average, reduce=False)
-        else:
-            self.loss = nn.NLLLoss(weight=torch.from_numpy(np.array(weight)).float(),
-                                    size_average=self.size_average, reduce=False)         
+        self.batch_average = batch_average
+        self.cuda = cuda
 
-    def forward(self, input, target):
-        #mask = target > 0
-        #targets_m = target.clone()
-        #targets_m[mask] -= 1 # 只训练类别为1的对象
-        loss_all = self.loss((1 - F.softmax(input, 1))**2 * F.log_softmax(input, 1), target)
-        loss=torch.sum(loss_all)
+    def build_loss(self, mode='ce'):
+        """Choices: ['ce' or 'focal']"""
+        if mode == 'cross_entropy':
+            return self.CrossEntropyLoss
+        elif mode == 'focalloss':
+            return self.FocalLoss
+        else:
+            raise NotImplementedError
+
+    def CrossEntropyLoss(self, logit, target):
+        n, c, h, w = logit.size()
+        criterion = nn.CrossEntropyLoss(weight=self.weight, ignore_index=self.ignore_index,
+                                        size_average=self.size_average)
+        if self.cuda:
+            criterion = criterion.cuda()
+
+        loss = criterion(logit, target.long())
+
+        if self.batch_average:
+            loss /= n
+
         return loss
+
+    def FocalLoss(self, logit, target, gamma=2, alpha=0.5):
+        n, c, h, w = logit.size()
+        criterion = nn.CrossEntropyLoss(weight=self.weight, ignore_index=self.ignore_index,
+                                        size_average=self.size_average)
+        if self.cuda:
+            criterion = criterion.cuda()
+
+        logpt = -criterion(logit, target.long())
+        pt = torch.exp(logpt)
+        if alpha is not None:
+            logpt *= alpha
+        loss = -((1 - pt) ** gamma) * logpt
+
+        if self.batch_average:
+            loss /= n
+
+        return loss
+
+
+def get_lossfunction(config_param):
+    lossobj = SegmentationLosses(weight=config_param['lossfunction']["weight"],size_average=False)
+   
+    return  lossobj.build_loss(config_param['lossfunction']["name"])
+     

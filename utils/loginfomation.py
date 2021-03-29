@@ -9,14 +9,14 @@ class loginfomation(object):
             os.makedirs(rootdir)
         self.model_name=model_name
         self.csvpath=os.path.join(rootdir,"val_log_{}.csv".format(model_name))
-        self.logtrainpath=os.path.join(rootdir,"trian_log_{}.txt",format(model_name))
-        self.logvalpath=os.path.join(rootdir,"val_log_{}.txt",format(model_name))
-        self.logtestpath=os.path.join(rootdir,"test_log_{}.txt",format(model_name))
+        self.logtrainpath=os.path.join(rootdir,"trian_log_{}.txt".format(model_name))
+        self.logvalpath=os.path.join(rootdir,"val_log_{}.txt".format(model_name))
+        self.logtestpath=os.path.join(rootdir,"test_log_{}.txt".format(model_name))
         
         self.loginfo={"modelname":[],'epoch':[]}
 
     def logValInfo(self,epoch,scores_val,class_iou_val):
-        self.loginfo[epoch]
+        self.loginfo["epoch"].append(epoch)
         self.loginfo['modelname'].append(self.model_name)
         self.loginfo['epoch'].append(epoch)
         for k, v in scores_val.items():

@@ -4,7 +4,7 @@ import argparse
 from tensorboardX import SummaryWriter  # 记录文件
 from utils.utils import get_optimizer,get_scheduler,save_ckpt,save_ckpt_bestmiou,load_ckpt
 from utils.loginfomation import loginfomation
-from utils.loss import FocalLoss
+from utils.loss import *
 from config.config import fcn_model_config
 from datasetloader.get_datasetLoader import *
 import time
@@ -12,6 +12,7 @@ from utils.metrics import runningScore
 from utils.loss import get_lossfunction
 from torchvision.utils import make_grid
 import os
+import torch.nn.functional as F
 
 def loadconfig(config_param):
     '''
@@ -97,16 +98,16 @@ def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,log
 
     return global_step,logobject,model,scheduler,optimizer
 
-def val(model,valloader,epoch,n_classes,lossfunction,logobject,muilt=True,global_step=0,image_step=100,writer=None):
+def val(model,valloader,epoch,running_metrics,lossfunction,logobject,muilt=True,global_step=0,image_step=100,writer=None):
     '''
     验证数据集
     '''
-    running_metrics = runningScore(n_classes)
+    
     datalen=len(valloader)
     start=time.time()
-    model.val()
+    model.eval()
     strlines=[]
-    with torch.zero_grad():
+    with torch.no_grad():
         for i, sample in enumerate(valloader):
             end=time.time()
             image,seg,label=sample['img'], sample['seg'], sample['label']
@@ -134,7 +135,7 @@ def val(model,valloader,epoch,n_classes,lossfunction,logobject,muilt=True,global
                 continue
             # 日常日志记录
             writer.add_scalar('val_loss', loss.data, global_step=global_step)
-            writer.add_scalar('val_Learning_rate', scheduler.get_lr()[0], global_step=global_step)
+            ## writer.add_scalar('val_Learning_rate', scheduler.get_lr()[0], global_step=global_step)
             # 记录图片
             if i%image_step:
                 grid_image = make_grid(image[:3].clone().cpu().data, 3, normalize=True)
@@ -148,16 +149,16 @@ def val(model,valloader,epoch,n_classes,lossfunction,logobject,muilt=True,global
         logobject.logvallog(strlines)
     return global_step,logobject,running_metrics
 
-def test(model,testloader,epoch,lossfunction,logobject,muilt=True,global_step=0,image_step=100,writer=None):
+def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=0,image_step=100,writer=None):
     '''
     测试数据集
     '''
-    running_metrics = runningScore(n_classes)
+
     datalen=len(testloader)
     start=time.time()
-    model.val()
+    model.eval()
     strlines=[]
-    with torch.zero_grad():
+    with torch.no_grad():
         for i, sample in enumerate(testloader):
             end=time.time()
             image,seg,label=sample['img'], sample['seg'], sample['label']
@@ -185,7 +186,7 @@ def test(model,testloader,epoch,lossfunction,logobject,muilt=True,global_step=0,
                 continue
             # 日常日志记录
             writer.add_scalar('test_loss', loss.data, global_step=global_step)
-            writer.add_scalar('test_Learning_rate', scheduler.get_lr()[0], global_step=global_step)
+            ###writer.add_scalar('test_Learning_rate', scheduler.get_lr()[0], global_step=global_step)
             # 记录图片
             if i%image_step:
                 grid_image = make_grid(image[:3].clone().cpu().data, 3, normalize=True)
@@ -210,10 +211,10 @@ def save_model(ckpt_dir,epoch,model,modelName,optimizer,running_metrics,best_iou
         print('Best model updated!')
         print(class_iou_val)
         best_model_stat = {'epoch': 0, 'scores_val': scores_val, 'class_iou_val': class_iou_val}
-        save_ckpt_bestmiou(ckpt_dir, model, modelName, optimizer, epoch, best_miou)
+        save_ckpt_bestmiou(ckpt_dir, model, modelName, optimizer, epoch, best_iou)
     save_ckpt(ckpt_dir, model, modelName, optimizer, epoch,best_iou)
     running_metrics.reset()
-    return scores_val,class_iou_val,best_iou
+    return scores_val,class_iou_val,best_iou,running_metrics
 
 def mainTrain(config_param,isTest=True):
     datasetLoader,model,optimizer,scheduler,lossfunction,writer,logobject,startepoch,ckpt_dir,writer,best_iou=loadconfig(config_param)
@@ -223,11 +224,12 @@ def mainTrain(config_param,isTest=True):
     n_class=config_param['n_class']
     print("trainDataset=======> {}".format(config_param["datasetName"]))
     print("model sturct=======>")
-    print(model)
+    #print(model)
     print("start Train=======>")
     print("model {} =======>".format(config_param["modelName"]))
 
     model=model.cuda() # 使用显卡
+    running_metrics = runningScore(n_class)
     for epoch in range(startepoch,config_param["maxepoch"]):
         if epoch<config_param['E512Step']:
             trainloader,valloader,testloader=datasetLoader['E256']
@@ -235,11 +237,11 @@ def mainTrain(config_param,isTest=True):
             trainloader,valloader,testloader=datasetLoader['E512']
         # 开始考虑模型训练
         trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=100,writer=writer)
-        valstep,logobject,running_metrics=val(model,valloader,epoch,n_classes,lossfunction,logobject,muilt=True,global_step=valstep,image_step=100,writer=writer)
+        valstep,logobject,running_metrics=val(model,valloader,epoch,running_metrics,lossfunction,logobject,muilt=True,global_step=valstep,image_step=100,writer=writer)
         if isTest:
-            teststep,logobject,running_metrics=test(model,testloader,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=100,writer=writer)
+            teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=100,writer=writer)
         # 输出结果
-        scores_val,class_iou_val,best_iou=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou)
+        scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou)
         logobject.logValInfo(epoch, scores_val, class_iou_val)
 
 if __name__=="__main__":
