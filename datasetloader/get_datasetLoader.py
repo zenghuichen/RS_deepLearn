@@ -33,9 +33,9 @@ def get_dataset(datasetName,dataSize='E256',batch_size=4,cropsize=(256,256),num_
     E_test=gfNanChangDataset(E_path,splitchar='test',augmentations=test_transpose) 
 
     # 创建对应的加载数据集   
-    E_train_loader=torchdata.DataLoader(E_train,batch_size=batch_size,num_workers=num_workers,shuffle=True)
-    E_val_loader=torchdata.DataLoader(E_val,batch_size=batch_size,num_workers=num_workers,shuffle=False)
-    E_test_loader=torchdata.DataLoader(E_test,batch_size=batch_size,num_workers=num_workers,shuffle=False)
+    E_train_loader=torchdata.DataLoader(E_train,batch_size=batch_size,num_workers=num_workers,shuffle=True,drop_last=True)
+    E_val_loader=torchdata.DataLoader(E_val,batch_size=batch_size,num_workers=num_workers,shuffle=False,drop_last=True)
+    E_test_loader=torchdata.DataLoader(E_test,batch_size=batch_size,num_workers=num_workers,shuffle=False,drop_last=True)
     
     return E_train_loader,E_val_loader,E_test_loader
 

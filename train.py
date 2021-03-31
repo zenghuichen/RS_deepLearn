@@ -13,6 +13,8 @@ from utils.loss import get_lossfunction
 from torchvision.utils import make_grid
 import os
 import torch.nn.functional as F
+from matplotlib import pyplot as plt
+
 
 def loadconfig(config_param):
     '''
@@ -23,7 +25,7 @@ def loadconfig(config_param):
 
     if not config_param["logpath"] is None and  not os.path.exists(config_param["logpath"]):
         os.makedirs(config_param["logpath"])
-
+                 
     if not config_param["checkpoint"] is None and  not os.path.exists(config_param["checkpoint"]):
         os.makedirs(config_param["checkpoint"])
 
@@ -82,14 +84,20 @@ def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,log
         writer.add_scalar('train_loss', loss.data, global_step=global_step)
         writer.add_scalar('train_Learning_rate', optimizer.param_groups[0]['lr'], global_step=global_step)
         # 记录图片
-        if i%image_step:
+        if i%image_step==0:
             grid_image = make_grid(image[:3].clone().cpu().data, 3, normalize=True)
             writer.add_image('trian_image', grid_image, global_step)
-            grid_image = make_grid(torch.argmax(outputs[:3].clone().cpu().data, 1), 3, normalize=False,range=(0, 3))
+
+
+            output_pre=torch.argmax(outputs, 1).reshape(-1,1,image.shape[2],image.shape[3])[:3].clone().cpu().data
+            grid_image = make_grid(output_pre, 3, normalize=False,range=(0, 255))            
             writer.add_image('train_Predicted_label', grid_image, global_step)
 
-            grid_image = make_grid(label[:3].clone().cpu().data, 3, normalize=False, range=(0, 3))
+            label_gt=label.reshape(-1,1,label.shape[1],label.shape[2])[:3].clone().cpu().data
+            grid_image = make_grid(label_gt, 3, normalize=False, range=(0, 255))
             writer.add_image('train_Groundtruth_label', grid_image, global_step)
+
+
         global_step=global_step+1
 
     print("epoch:{},times:{}".format(epoch,time.time()-start))
@@ -102,7 +110,6 @@ def val(model,valloader,epoch,running_metrics,lossfunction,logobject,muilt=True,
     '''
     验证数据集
     '''
-    
     datalen=len(valloader)
     start=time.time()
     model.eval()
@@ -137,12 +144,14 @@ def val(model,valloader,epoch,running_metrics,lossfunction,logobject,muilt=True,
             writer.add_scalar('val_loss', loss.data, global_step=global_step)
             ## writer.add_scalar('val_Learning_rate', scheduler.get_lr()[0], global_step=global_step)
             # 记录图片
-            if i%image_step:
+            if i%image_step==0:
                 grid_image = make_grid(image[:3].clone().cpu().data, 3, normalize=True)
                 writer.add_image('val_image', grid_image, global_step)
-                grid_image = make_grid(torch.argmax(outputs[:3].clone().cpu().data, 1), 3, normalize=False,range=(0, 3))
+                output_pre=torch.argmax(outputs, 1).reshape(-1,1,outputs.shape[2],outputs.shape[3])[:3].clone().cpu().data
+                grid_image = make_grid(output_pre, 3, normalize=False,range=(0, 255))  
                 writer.add_image('val_Predicted_label', grid_image, global_step)
-                grid_image = make_grid(label[:3].clone().cpu().data, 3, normalize=False, range=(0, 3))
+                label_gt=label.reshape(-1,1,label.shape[1],label.shape[2])[:3].clone().cpu().data
+                grid_image = make_grid(label_gt, 3, normalize=False, range=(0, 255))
                 writer.add_image('val_Groundtruth_label', grid_image, global_step)
             global_step=global_step+1
         print("epoch:{},times:{}".format(epoch,time.time()-start))
@@ -153,7 +162,6 @@ def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=Tru
     '''
     测试数据集
     '''
-
     datalen=len(testloader)
     start=time.time()
     model.eval()
@@ -177,7 +185,6 @@ def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=Tru
             gt = label.data.cpu().numpy()
             # 统计损失值
             running_metrics.update(gt, pred)
-
             strlines.append("epoch:{},iter:{}/{},loss:{},itertime:{}".format(epoch,i,datalen,loss.detach().cpu().data, time.time()-end))
             print(strlines[-1])
             # writer 加载数据
@@ -188,15 +195,16 @@ def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=Tru
             writer.add_scalar('test_loss', loss.data, global_step=global_step)
             ###writer.add_scalar('test_Learning_rate', scheduler.get_lr()[0], global_step=global_step)
             # 记录图片
-            if i%image_step:
+            if i%image_step==0:
                 grid_image = make_grid(image[:3].clone().cpu().data, 3, normalize=True)
                 writer.add_image('test_image', grid_image, global_step)
-                grid_image = make_grid(torch.argmax(outputs[:3].clone().cpu().data, 1), 3, normalize=False,range=(0, 3))
+                output_pre=torch.argmax(outputs, 1).reshape(-1,1,outputs.shape[2],outputs.shape[3])[:3].clone().cpu().data
+                grid_image = make_grid(output_pre, 3, normalize=False,range=(0, 255))  
                 writer.add_image('test_Predicted_label', grid_image, global_step)
-                grid_image = make_grid(label[:3].clone().cpu().data, 3, normalize=False, range=(0, 3))
+                label_gt=label.reshape(-1,1,label.shape[1],label.shape[2])[:3].clone().cpu().data
+                grid_image = make_grid(label_gt, 3, normalize=False, range=(0, 255))
                 writer.add_image('test_Groundtruth_label', grid_image, global_step)
             global_step=global_step+1
-
         print("epoch:{},times:{}".format(epoch,time.time()-start))
         logobject.logtestlog(strlines)
     return global_step,logobject,running_metrics
@@ -211,8 +219,8 @@ def save_model(ckpt_dir,epoch,model,modelName,optimizer,running_metrics,best_iou
         print('Best model updated!')
         print(class_iou_val)
         best_model_stat = {'epoch': 0, 'scores_val': scores_val, 'class_iou_val': class_iou_val}
-        save_ckpt_bestmiou(ckpt_dir, model, modelName, optimizer, epoch, best_iou)
-    save_ckpt(ckpt_dir, model, modelName, optimizer, epoch,best_iou)
+        #save_ckpt_bestmiou(ckpt_dir, model, modelName, optimizer, epoch, best_iou)
+    #save_ckpt(ckpt_dir, model, modelName, optimizer, epoch,best_iou)
     running_metrics.reset()
     return scores_val,class_iou_val,best_iou,running_metrics
 
@@ -227,7 +235,6 @@ def mainTrain(config_param,isTest=True):
     #print(model)
     print("start Train=======>")
     print("model {} =======>".format(config_param["modelName"]))
-
     model=model.cuda() # 使用显卡
     running_metrics = runningScore(n_class)
     for epoch in range(startepoch,config_param["maxepoch"]):
@@ -236,10 +243,10 @@ def mainTrain(config_param,isTest=True):
         else: # 切换数据源
             trainloader,valloader,testloader=datasetLoader['E512']
         # 开始考虑模型训练
-        trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=100,writer=writer)
-        valstep,logobject,running_metrics=val(model,valloader,epoch,running_metrics,lossfunction,logobject,muilt=True,global_step=valstep,image_step=100,writer=writer)
+        trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=1,writer=writer)
+        valstep,logobject,running_metrics=val(model,valloader,epoch,running_metrics,lossfunction,logobject,muilt=True,global_step=valstep,image_step=1,writer=writer)
         if isTest:
-            teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=100,writer=writer)
+            teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=1,writer=writer)
         # 输出结果
         scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou)
         logobject.logValInfo(epoch, scores_val, class_iou_val)

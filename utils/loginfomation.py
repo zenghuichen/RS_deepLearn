@@ -18,7 +18,6 @@ class loginfomation(object):
     def logValInfo(self,epoch,scores_val,class_iou_val):
         self.loginfo["epoch"].append(epoch)
         self.loginfo['modelname'].append(self.model_name)
-        self.loginfo['epoch'].append(epoch)
         for k, v in scores_val.items():
             if k not in self.loginfo:
                 self.loginfo[k]=[]
