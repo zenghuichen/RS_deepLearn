@@ -31,5 +31,17 @@ def getRootdirFromDatasetName(datasetName):
                     "E512":"/media/gis/databackup/ayc/modellist/dataset/nanchang/E512/AllBands",
                     "mean":[98.42966601004996, 103.47446405573739, 89.24539776311728, 118.10080357709782],
                     "std":[39.68257615485789, 40.96571881718136, 36.232309241791654, 46.13046923546727]},    
+
+
+        # 代码开始测试数据集 ，所以不存在512 的数据集，使用256 大小的数据集 代替之
+        'RGB234_test':{'E256':"/media/gis/databackup/ayc/modellist/dataset/nanchang/E256/RGB234_test",
+                    "E512":"/media/gis/databackup/ayc/modellist/dataset/nanchang/E256/RGB234_test",
+                    "mean":[103.47446405573739, 89.24539776311728, 118.10080357709782],
+                    "std":[40.96571881718136, 36.232309241791654, 46.13046923546727]},
+
+        'ALLBands_test':{'E256':"/media/gis/databackup/ayc/modellist/dataset/nanchang/E256/ALLBands_test",
+                    "E512":"/media/gis/databackup/ayc/modellist/dataset/nanchang/E256/ALLBands_test",
+                    "mean":[98.42966601004996, 103.47446405573739, 89.24539776311728, 118.10080357709782],
+                    "std":[39.68257615485789, 40.96571881718136, 36.232309241791654, 46.13046923546727]},   
     }
     return pathlist[datasetName]

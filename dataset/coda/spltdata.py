@@ -279,6 +279,9 @@ if __name__=='__main__':
             tifinfo['NoMaskNum']=tifinfo['NoMaskNum']+1
     
     tifinfo["exampleNum"]=tifinfo['trainnum']+tifinfo['testnum']+tifinfo['NoMaskNum']
+    # 获取比例权重值
+    mask_sum=np.sum(mask)/np.sum(mask>-1) # 类别为1 的值
+    tifinfo["weight"]=[mask_sum,1-mask_sum]
     # 统计各个波段缩放到255,对应的平均值与标准差
     RGBdata=(gf2data-minvalues)/(maxvalues-minvalues) # 
     RGBdata=RGBdata*255

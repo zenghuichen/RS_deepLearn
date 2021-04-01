@@ -2,7 +2,7 @@
 记录训练中的使用的参数
 '''
 fcn_model_config={
-    'datasetName':"RGB234",
+    'datasetName':"RGB234_test",
     "modelName":"fcn",
     'n_class':2,
     'pre_model_path':None,# 预加载模型
