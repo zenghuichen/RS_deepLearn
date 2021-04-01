@@ -16,7 +16,7 @@ from datasetloader.augmentations import *
 def get_dataset(datasetName,dataSize='E256',batch_size=4,cropsize=(256,256),num_workers=8):
     '''
     创建对应的数据结构
-    datasetName:数据名称 可以选择：RGB432 RGB421，RGB321 allband
+    datasetName:数据名称 可以选择：RGB123 RGB124 allband RGB134 RGB234
     '''
     dataset_path=getRootdirFromDatasetName(datasetName)
     E_path=dataset_path[dataSize]
@@ -24,9 +24,6 @@ def get_dataset(datasetName,dataSize='E256',batch_size=4,cropsize=(256,256),num_
     # 构建对应的数据结构
     train_transpose=get_augmentations("train",cropsize,dataset_path)
     E_train=gfNanChangDataset(E_path,splitchar='train',augmentations=train_transpose) 
-    # 处理val数据集
-    val_transpose=get_augmentations("val",cropsize,dataset_path)
-    E_val=gfNanChangDataset(E_path,splitchar='val',augmentations=val_transpose) 
     
     # 处理test数据集
     test_transpose=get_augmentations('test',cropsize,dataset_path)
@@ -34,10 +31,9 @@ def get_dataset(datasetName,dataSize='E256',batch_size=4,cropsize=(256,256),num_
 
     # 创建对应的加载数据集   
     E_train_loader=torchdata.DataLoader(E_train,batch_size=batch_size,num_workers=num_workers,shuffle=True,drop_last=True)
-    E_val_loader=torchdata.DataLoader(E_val,batch_size=batch_size,num_workers=num_workers,shuffle=False,drop_last=True)
     E_test_loader=torchdata.DataLoader(E_test,batch_size=batch_size,num_workers=num_workers,shuffle=False,drop_last=True)
     
-    return E_train_loader,E_val_loader,E_test_loader
+    return E_train_loader,E_test_loader
 
 def get_augmentations(split,cropsize,E_path):
     '''

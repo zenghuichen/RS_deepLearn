@@ -19,7 +19,7 @@ class gfNanChangDataset(torchutil.data.Dataset):
         '''
         self.rootdir=os.path.join(rootdir,splitchar)
         self.seg_path=os.path.join(self.rootdir,"seg")
-        self.image_path=os.path.join(self.rootdir,"image")
+        self.image_path=os.path.join(self.rootdir,"img")
         self.label_path=os.path.join(self.rootdir,"label")
         self.augmentation=augmentations
         # 检索存在的数据集

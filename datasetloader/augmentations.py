@@ -75,11 +75,11 @@ class Normalize:
 
     def __call__(self, sample):
         image,seg,label=sample['img'], sample['seg'], sample['label']
-        #image=(image-self.mean_arr)/self.std_arr
+        image=(image-self.mean_arr)/self.std_arr # z-score 零-均值归一化
         # 数据正则化 
         # 这里假设当前平均值为4000， 最大值为+_20000
         #image=(image-self.mean_arr)*0.01
-        image=(image-4000)/20000 
+        #image=(image-4000)/20000 
         sample['img']=image
         sample['seg']=seg
         sample['label']=label
@@ -91,9 +91,7 @@ class ToTensor:
     
     def __call__(self,sample):
         image,seg,label=sample['img'], sample['seg'], sample['label']
-        # 
         sample['img']= torch.from_numpy(np.transpose(image,(2,0,1))).float()
         sample['seg']=torch.from_numpy(seg).long()
         sample['label']=torch.from_numpy(label).long()
-
         return sample
