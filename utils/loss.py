@@ -14,20 +14,21 @@ class FocalLoss(nn.Module):
     '''
     def __init__(self,weight,gamma,reduction='mean'):
         super(FocalLoss,self).__init__()
-        self.weight=weight
+        
         self.gamma=gamma
         self.reduction=reduction
-        if self.weight is None:
-            self.loss=nn.NLLLoss(weight=None,reduction=reduction)
+        if weight is None:
+            self.weight=None
         else:
-            self.loss=nn.NLLLoss(weight=torch.tensor(self.weight).cuda(),reduction=reduction)
-
+            self.weight=torch.tensor(weight).cuda()
+        
     def forward(self,inputs,gt):
         '''
         假定input没有执行softmax函数
         '''
-        inputs=F.softmax(inputs)
+        inputs=F.softmax(inputs) # 求解分布概率
         loss_tatal=0
+      
         for i in range(gt.shape[1]):
             loss_tatal=loss_tatal-self.weight[i]*torch.pow(1-inputs[:,i,:,:],self.gamma)*torch.log10(inputs[:,i,:,:])*gt[:,i,:,:]    # Focal Loss 累加方法 --直接构建公式
         loss_value=torch.sum(loss_tatal)/1000

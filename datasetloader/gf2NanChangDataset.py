@@ -47,6 +47,7 @@ class gfNanChangDataset(torchutil.data.Dataset):
             return {'img':img_,"seg":seg_,"label":label_,"name":name_}
         output_= {'img':img_,"seg":seg_,"label":label_,"name":name_}
         output_=self.augmentation(output_)
+        output_["source_image"]=torch.from_numpy( np.transpose(np.load(img_path_).astype(np.float),(2,0,1)))
         return output_
 
 

@@ -52,7 +52,7 @@ def loadconfig(config_param):
     return datasetLoader,model,optimizer,scheduler,lossfunction,writer,logobject,startepoch,ckpt_dir,writer,best_iou
 
 
-def DrawImage(img,pre,gt,epoch=0):
+def DrawImage(img,pre,gt,logresult_dir,epoch=0,sig='train'):
     '''自动动画绘制图像 需要提前 plt.ion() 初始化绘制环境'''
     '''img,pre,gt 数据全部都为numpy'''
     plt.cla()
@@ -66,7 +66,41 @@ def DrawImage(img,pre,gt,epoch=0):
     plt.imshow(gt[0,:,:])
     plt.title('gt')
     plt.pause(0.01) # 停留1s
-    plt.savefig("/home/gis/gisdata/databackup/ayc/modellist/result/log/{}.png".format(epoch))
+    plt.savefig(os.path.join(logresult_dir,"sig_{}".format(epoch)))
+
+def WriterSummary(writer,sig,loss,lr_rate,image,pred,gt,seg,step,image_step):
+    '''
+    记录当前数据的情况，并记录训练中的相关信息
+    '''
+    writer.add_scalar("{}_loss".format(sig),loss.data,step)
+    if sig=="train":
+        writer.add_scalar("{}_lr".format(sig),lr_rate,step)
+    
+    if step%image_step==0:
+        # 保存训练数据
+        img=image[0,:3,:,:].clone().cpu().data.reshape(3,256,256)
+        pred_softmax=F.softmax(pred).max(1)[1][0,:,:].squeeze().detach().cpu().data
+        pred_softmax=pred_softmax.reshape(1,pred_softmax.shape[0],pred_softmax.shape[1])
+        pred_softmax=torch.cat([pred_softmax,pred_softmax,pred_softmax])
+        gt_img=gt[0,0,:,:].detach().cpu().data
+        gt_img=gt_img.reshape(1,gt_img.shape[0],gt_img.shape[1])
+        gt_img=torch.cat([gt_img,gt_img,gt_img])
+
+        seg_img=seg[0,:,:]
+        seg_img=seg_img.reshape(1,seg_img.shape[0],seg_img.shape[1])
+        seg_img=torch.cat([seg_img,seg_img,seg_img])
+        writer_img=make_grid([img,pred_softmax,gt_img,seg_img],nrow=4)
+        writer.add_image("{}_img".format(sig),writer_img,step)
+    pass
+
+def WriterAccurary(writer,scores_val,class_iou_val,epoch):
+    for k, v in scores_val.items():
+        writer.add_scalar("test_scores_{}".format(k),v,epoch)
+
+    for k, v in class_iou_val.items():
+        writer.add_scalar("test_class_{}".format(k),v,epoch)
+
+
 
 def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=0,image_step=100,writer=None):
     '''
@@ -78,13 +112,13 @@ def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,log
     strlines=[]
     for i, sample in enumerate(trainloader):
         end=time.time()
-        image,seg,label=sample['img'], sample['seg'], sample['label']
+        image,seg,labels,source_img=sample['img'], sample['seg'], sample['label'],sample["source_image"]
         images=image.cuda()
         # 模型训练
         optimizer.zero_grad()
         outputs = model(images)
         if muilt:
-            loss=lossfunction(outputs,label.cuda())
+            loss=lossfunction(outputs,labels.cuda())
             #loss=lossfunction(F.log_softmax(outputs),label.cuda())
         else:
             pass
@@ -99,28 +133,7 @@ def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,log
             global_step=global_step+1
             continue
         # 日常日志记录
-        writer.add_scalar('train_loss', loss.data, global_step=global_step)
-        writer.add_scalar('train_Learning_rate', optimizer.param_groups[0]['lr'], global_step=global_step)
-        # 记录图片
-        if i%image_step==0 and epoch>0:
-            pred=F.softmax(outputs).max(1)[1]
-            DrawImage(image[0,0,:,:].detach().cpu().numpy(),pred[0,1,:,:].squeeze().detach().cpu().numpy(),label[0,:,:].detach().cpu().numpy(),epoch=epoch)
-            '''
-            grid_image = make_grid(image[:1].clone().cpu().data, 1, normalize=True)
-            writer.add_image('trian_image', grid_image, global_step)
-        
-            # output_pre=torch.argmax(F.softmax(outputs), 1).reshape(-1,1,image.shape[2],image.shape[3])[:1].clone().cpu().data
-            # 二分类问题，可以使用的 sigmoid
-            #  
-            output_pre=F.sigmoid(outputs)[:1].clone().cpu().data
-            output_pre=output_pre*255
-            print(torch.min(output_pre),torch.max(output_pre))
-            writer.add_image('train_Predicted_label', output_pre[0,:,:,:], global_step)
-
-            label_gt=label.reshape(-1,1,label.shape[1],label.shape[2])[:1].clone().cpu().data
-            grid_image = make_grid(label_gt, 1, normalize=False, range=(0, 255))
-            writer.add_image('train_Groundtruth_label', grid_image, global_step)
-            '''
+        WriterSummary(writer,'train',loss,optimizer.param_groups[0]['lr'],source_img,outputs,labels,seg,global_step,image_step)
 
         global_step=global_step+1
 
@@ -141,16 +154,16 @@ def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=Tru
     with torch.no_grad():
         for i, sample in enumerate(testloader):
             end=time.time()
-            image,seg,label=sample['img'], sample['seg'], sample['label']
+            image,seg,label,source_img=sample['img'], sample['seg'], sample['label'],sample["source_image"]
             images=image.cuda()
             outputs = model(image.cuda())
             if muilt:
                 loss=lossfunction(outputs,label.cuda())
             else:
                 pass
-            _, image_h, image_w = label.shape
+            _, _,image_h, image_w = label.shape
 
-            pred=F.log_softmax(outputs).cpu() # 因为原始模型中结尾 没有softmax
+            pred=F.softmax(outputs).cpu() # 因为原始模型中结尾 没有softmax
 
             #pred = torch.argmax(pred, dim=1).cpu()
             gt = label.data.cpu()
@@ -163,24 +176,8 @@ def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=Tru
                 global_step=global_step+1
                 continue
             # 日常日志记录
-            writer.add_scalar('test_loss', loss.data, global_step=global_step)
-            ###writer.add_scalar('test_Learning_rate', scheduler.get_lr()[0], global_step=global_step)
-            # 记录图片
-            if i%image_step==0 and epoch>950:
-                DrawImage(image[0,0,:,:].detach().cpu().numpy(),pred.max(1)[0,:,:,:].squeeze().detach().cpu().numpy(),label[0,:,:].detach().cpu().numpy())
-                
-                '''
-                grid_image = make_grid(image[:1].clone().cpu().data, 1, normalize=True)
-                writer.add_image('test_image', grid_image, global_step)
-                output_pre=pred[:1].clone().cpu().data
-                output_pre=output_pre*255
-                #grid_image = make_grid(output_pre, 1, normalize=False,range=(0, 255))  
-                print(torch.min(output_pre),torch.max(output_pre))
-                writer.add_image('test_Predicted_label', output_pre, global_step)
-                label_gt=gt[:1].clone().cpu().data
-                grid_image = make_grid(label_gt, 1, normalize=False, range=(0, 255))
-                writer.add_image('test_Groundtruth_label', grid_image, global_step)
-                '''
+            WriterSummary(writer,'test',loss,0.01,source_img,outputs,label,seg,global_step,image_step=image_step)
+
             global_step=global_step+1
         print("epoch:{},times:{}".format(epoch,time.time()-start))
         logobject.logtestlog(strlines)
@@ -200,8 +197,8 @@ def save_model(ckpt_dir,epoch,model,modelName,optimizer,running_metrics,best_iou
         print('Best model updated!')
         print(class_iou_val)
         best_model_stat = {'epoch': 0, 'scores_val': scores_val, 'class_iou_val': class_iou_val}
-        #save_ckpt_bestmiou(ckpt_dir, model, modelName, optimizer, epoch, best_iou)
-    save_ckpt(ckpt_dir, model, modelName, optimizer, epoch,best_iou)
+        save_ckpt_bestmiou(ckpt_dir, model, modelName, optimizer, epoch, best_iou)
+
     running_metrics.reset()
     return scores_val,class_iou_val,best_iou,running_metrics
 
@@ -233,10 +230,11 @@ def mainTrain(config_param,isTest=True):
         # 训练集
         trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=1,writer=writer)
         # 测试集
-        #teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=1,writer=writer)
+        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=1,writer=writer)
         # 输出结果
-        #scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou)
-        #logobject.logValInfo(epoch, scores_val, class_iou_val)
+        scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou)
+        WriterAccurary(writer,scores_val,class_iou_val,epoch)
+        logobject.logValInfo(epoch, scores_val, class_iou_val)
         if epoch%10==0:
             save_ckpt(ckpt_dir, model, config_param["modelName"], optimizer, epoch,best_iou)
 if __name__=="__main__":
