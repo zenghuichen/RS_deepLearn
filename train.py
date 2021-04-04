@@ -228,9 +228,9 @@ def mainTrain(config_param,isTest=True):
             trainloader,testloader=datasetLoader['E512']
         # 开始考虑模型训练
         # 训练集
-        trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=1,writer=writer)
+        trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=300,writer=writer)
         # 测试集
-        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=1,writer=writer)
+        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=300,writer=writer)
         # 输出结果
         scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou)
         WriterAccurary(writer,scores_val,class_iou_val,epoch)
