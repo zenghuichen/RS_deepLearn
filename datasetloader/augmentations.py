@@ -84,6 +84,22 @@ class Normalize:
         sample['seg']=seg
         sample['label']=label
         return sample
+class OneHot:
+    '''
+    one-hot encoding 方法，方便计算损失函数
+    '''
+    def __init__(self,cls_num):
+        self.cls_num=cls_num
+        pass
+    def __call__(self,sample):
+        image,seg,label=sample['img'], sample['seg'], sample['label']
+        new_label=np.zeros((self.cls_num,label.shape[0],label.shape[1]),dtype=np.uint8)
+        for i in range(0,self.cls_num):
+            new_label[i,:,:]=(label==i)*1
+        sample['img']=image
+        sample['seg']=seg
+        sample['label']=new_label        
+        return sample
 
 class ToTensor:
     def __init__(self):

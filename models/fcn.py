@@ -1,340 +1,192 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import print_function
+
+import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.optim as optim
+from torchvision import models 
+from torchvision.models.resnet import ResNet,Bottleneck
 
-# FCN32s
-class fcn32s(nn.Module):
+class FCN32s(nn.Module):
 
-    def __init__(self, n_classes=21, learned_billinear=False):
-        super(fcn32s, self).__init__()
-        self.learned_billinear = learned_billinear
-        self.n_classes = n_classes
-
-        self.conv_block1 = nn.Sequential(
-            nn.Conv2d(3, 64, 3, padding=100),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block4 = nn.Sequential(
-            nn.Conv2d(256, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block5 = nn.Sequential(
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.classifier = nn.Sequential(
-            nn.Conv2d(512, 4096, 7),
-            nn.ReLU(inplace=True),
-            nn.Dropout2d(),
-            nn.Conv2d(4096, 4096, 1),
-            nn.ReLU(inplace=True),
-            nn.Dropout2d(),
-            nn.Conv2d(4096, self.n_classes, 1),)
-
-        # TODO: Add support for learned upsampling
-        if self.learned_billinear:
-            raise NotImplementedError
-            # upscore = nn.ConvTranspose2d(self.n_classes, self.n_classes, 64, stride=32, bias=False)
-            # upscore.scale_factor = None
-
+    def __init__(self, pretrained_net, n_class):
+        super().__init__()
+        self.n_class = n_class
+        self.pretrained_net = pretrained_net
+        self.relu = nn.ReLU(inplace=True)
+        self.deconv1 = nn.ConvTranspose2d(512, 512, kernel_size=3, stride=2, padding=1, dilation=1)
+        self.bn1 = nn.BatchNorm2d(512)
+        self.deconv2 = nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, dilation=1)
+        self.bn2 = nn.BatchNorm2d(256)
+        self.deconv3 = nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, dilation=1)
+        self.bn3 = nn.BatchNorm2d(128)
+        self.deconv4 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, dilation=1)
+        self.bn4 = nn.BatchNorm2d(64)
+        self.deconv5 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, dilation=1)
+        self.bn5 = nn.BatchNorm2d(32)
+        self.classifier = nn.Conv2d(32, n_class, kernel_size=1)
 
     def forward(self, x):
-        conv1 = self.conv_block1(x)
-        conv2 = self.conv_block2(conv1)
-        conv3 = self.conv_block3(conv2)
-        conv4 = self.conv_block4(conv3)
-        conv5 = self.conv_block5(conv4)
-        score = self.classifier(conv5)
+        output = self.pretrained_net(x)
+        x5 = output['x5']  # size=(N, 512, x.H/32, x.W/32)
 
-        out = F.upsample_bilinear(score, x.size()[2:])
+        score = self.bn1(self.relu(self.deconv1(x5)))     # size=(N, 512, x.H/16, x.W/16)
+        score = self.bn2(self.relu(self.deconv2(score)))  # size=(N, 256, x.H/8, x.W/8)
+        score = self.bn3(self.relu(self.deconv3(score)))  # size=(N, 128, x.H/4, x.W/4)
+        score = self.bn4(self.relu(self.deconv4(score)))  # size=(N, 64, x.H/2, x.W/2)
+        score = self.bn5(self.relu(self.deconv5(score)))  # size=(N, 32, x.H, x.W)
+        score = self.classifier(score)                    # size=(N, n_class, x.H/1, x.W/1)
 
-        return out
+        return score  # size=(N, n_class, x.H/1, x.W/1)
 
 
-    def init_vgg16_params(self, vgg16, copy_fc8=True):
-        blocks = [self.conv_block1,
-                  self.conv_block2,
-                  self.conv_block3,
-                  self.conv_block4,
-                  self.conv_block5]
+class FCN16s(nn.Module):
 
-        ranges = [[0, 4], [5, 9], [10, 16], [17, 23], [24, 29]]
-        features = list(vgg16.features.children())
-
-        for idx, conv_block in enumerate(blocks):
-            for l1, l2 in zip(features[ranges[idx][0]:ranges[idx][1]], conv_block):
-                if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
-                    # print(idx, l1, l2)
-                    assert l1.weight.size() == l2.weight.size()
-                    assert l1.bias.size() == l2.bias.size()
-                    l2.weight.data = l1.weight.data
-                    l2.bias.data = l1.bias.data
-        for i1, i2 in zip([0, 3], [0, 3]):
-            l1 = vgg16.classifier[i1]
-            l2 = self.classifier[i2]
-            # print(type(l1), dir(l1))
-            l2.weight.data = l1.weight.data.view(l2.weight.size())
-            l2.bias.data = l1.bias.data.view(l2.bias.size())
-        n_class = self.classifier[6].weight.size()[0]
-        if copy_fc8:
-            l1 = vgg16.classifier[6]
-            l2 = self.classifier[6]
-            l2.weight.data = l1.weight.data[:n_class, :].view(l2.weight.size())
-            l2.bias.data = l1.bias.data[:n_class]
-
-class fcn16s(nn.Module):
-
-    def __init__(self, n_classes=21, learned_billinear=False):
-        super(fcn16s, self).__init__()
-        self.learned_billinear = learned_billinear
-        self.n_classes = n_classes
-
-        self.conv_block1 = nn.Sequential(
-            nn.Conv2d(3, 64, 3, padding=100),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block4 = nn.Sequential(
-            nn.Conv2d(256, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block5 = nn.Sequential(
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.classifier = nn.Sequential(
-            nn.Conv2d(512, 4096, 7),
-            nn.ReLU(inplace=True),
-            nn.Dropout2d(),
-            nn.Conv2d(4096, 4096, 1),
-            nn.ReLU(inplace=True),
-            nn.Dropout2d(),
-            nn.Conv2d(4096, self.n_classes, 1),)
-
-        self.score_pool4 = nn.Conv2d(512, self.n_classes, 1)
-
-        # TODO: Add support for learned upsampling
-        if self.learned_billinear:
-            raise NotImplementedError
-            # upscore = nn.ConvTranspose2d(self.n_classes, self.n_classes, 64, stride=32, bias=False)
-            # upscore.scale_factor = None
-
+    def __init__(self, pretrained_net, n_class):
+        super().__init__()
+        self.n_class = n_class
+        self.pretrained_net = pretrained_net
+        self.relu    = nn.ReLU(inplace=True)
+        self.deconv1 = nn.ConvTranspose2d(512, 512, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn1     = nn.BatchNorm2d(512)
+        self.deconv2 = nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn2     = nn.BatchNorm2d(256)
+        self.deconv3 = nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn3     = nn.BatchNorm2d(128)
+        self.deconv4 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn4     = nn.BatchNorm2d(64)
+        self.deconv5 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn5     = nn.BatchNorm2d(32)
+        self.classifier = nn.Conv2d(32, n_class, kernel_size=1)
 
     def forward(self, x):
-        conv1 = self.conv_block1(x)
-        conv2 = self.conv_block2(conv1)
-        conv3 = self.conv_block3(conv2)
-        conv4 = self.conv_block4(conv3)
-        conv5 = self.conv_block5(conv4)
+        output = self.pretrained_net(x)
+        x5 = output['x5']  # size=(N, 512, x.H/32, x.W/32)
+        x4 = output['x4']  # size=(N, 512, x.H/16, x.W/16)
 
-        score = self.classifier(conv5)
-        score_pool4 = self.score_pool4(conv4)
+        score = self.relu(self.deconv1(x5))               # size=(N, 512, x.H/16, x.W/16)
+        score = self.bn1(score + x4)                      # element-wise add, size=(N, 512, x.H/16, x.W/16)
+        score = self.bn2(self.relu(self.deconv2(score)))  # size=(N, 256, x.H/8, x.W/8)
+        score = self.bn3(self.relu(self.deconv3(score)))  # size=(N, 128, x.H/4, x.W/4)
+        score = self.bn4(self.relu(self.deconv4(score)))  # size=(N, 64, x.H/2, x.W/2)
+        score = self.bn5(self.relu(self.deconv5(score)))  # size=(N, 32, x.H, x.W)
+        score = self.classifier(score)                    # size=(N, n_class, x.H/1, x.W/1)
 
-        score = F.upsample_bilinear(score, score_pool4.size()[2:])
-        score += score_pool4
-        out = F.upsample_bilinear(score, x.size()[2:])
-
-        return out
+        return score  # size=(N, n_class, x.H/1, x.W/1)
 
 
-    def init_vgg16_params(self, vgg16, copy_fc8=True):
-        blocks = [self.conv_block1,
-                  self.conv_block2,
-                  self.conv_block3,
-                  self.conv_block4,
-                  self.conv_block5]
+class FCN8s(nn.Module):
 
-        ranges = [[0, 4], [5, 9], [10, 16], [17, 23], [24, 29]]
-        features = list(vgg16.features.children())
-
-        for idx, conv_block in enumerate(blocks):
-            for l1, l2 in zip(features[ranges[idx][0]:ranges[idx][1]], conv_block):
-                if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
-                    # print(idx, l1, l2)
-                    assert l1.weight.size() == l2.weight.size()
-                    assert l1.bias.size() == l2.bias.size()
-                    l2.weight.data = l1.weight.data
-                    l2.bias.data = l1.bias.data
-        for i1, i2 in zip([0, 3], [0, 3]):
-            l1 = vgg16.classifier[i1]
-            l2 = self.classifier[i2]
-            l2.weight.data = l1.weight.data.view(l2.weight.size())
-            l2.bias.data = l1.bias.data.view(l2.bias.size())
-        n_class = self.classifier[6].weight.size()[0]
-        if copy_fc8:
-            l1 = vgg16.classifier[6]
-            l2 = self.classifier[6]
-            l2.weight.data = l1.weight.data[:n_class, :].view(l2.weight.size())
-            l2.bias.data = l1.bias.data[:n_class]
-
-# FCN 8s
-class fcn8s(nn.Module):
-
-    def __init__(self, n_classes=21, learned_billinear=False):
-        super(fcn8s, self).__init__()
-        self.learned_billinear = learned_billinear
-        self.n_classes = n_classes
-
-        self.conv_block1 = nn.Sequential(
-            nn.Conv2d(3, 64, 3, padding=100),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(64, 64, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block2 = nn.Sequential(
-            nn.Conv2d(64, 128, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 128, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block3 = nn.Sequential(
-            nn.Conv2d(128, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(256, 256, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block4 = nn.Sequential(
-            nn.Conv2d(256, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.conv_block5 = nn.Sequential(
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(512, 512, 3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(2, stride=2, ceil_mode=True),)
-
-        self.classifier = nn.Sequential(
-            nn.Conv2d(512, 4096, 7),
-            nn.ReLU(inplace=True),
-            nn.Dropout2d(),
-            nn.Conv2d(4096, 4096, 1),
-            nn.ReLU(inplace=True),
-            nn.Dropout2d(),
-            nn.Conv2d(4096, self.n_classes, 1),)
-
-        self.score_pool4 = nn.Conv2d(512, self.n_classes, 1)
-        self.score_pool3 = nn.Conv2d(256, self.n_classes, 1)
-
-        # TODO: Add support for learned upsampling
-        if self.learned_billinear:
-            raise NotImplementedError
-            # upscore = nn.ConvTranspose2d(self.n_classes, self.n_classes, 64, stride=32, bias=False)
-            # upscore.scale_factor = None
+    def __init__(self, pretrained_net, n_class):
+        super().__init__()
+        self.n_class = n_class
+        self.pretrained_net = pretrained_net
+        self.relu    = nn.ReLU(inplace=True)
+        self.deconv1 = nn.ConvTranspose2d(512, 512, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn1     = nn.BatchNorm2d(512)
+        self.deconv2 = nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn2     = nn.BatchNorm2d(256)
+        self.deconv3 = nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn3     = nn.BatchNorm2d(128)
+        self.deconv4 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn4     = nn.BatchNorm2d(64)
+        self.deconv5 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn5     = nn.BatchNorm2d(32)
+        self.classifier = nn.Conv2d(32, n_class, kernel_size=1)
 
     def forward(self, x):
-        conv1 = self.conv_block1(x)
-        conv2 = self.conv_block2(conv1)
-        conv3 = self.conv_block3(conv2)
-        conv4 = self.conv_block4(conv3)
-        conv5 = self.conv_block5(conv4)
+        output = self.pretrained_net(x)
+        x5 = output['x5']  # size=(N, 512, x.H/32, x.W/32)
+        x4 = output['x4']  # size=(N, 512, x.H/16, x.W/16)
+        x3 = output['x3']  # size=(N, 256, x.H/8,  x.W/8)
 
-        score = self.classifier(conv5)
-        score_pool4 = self.score_pool4(conv4)
-        score_pool3 = self.score_pool3(conv3)
+        score = self.relu(self.deconv1(x5))               # size=(N, 512, x.H/16, x.W/16)
+        score = self.bn1(score + x4)                      # element-wise add, size=(N, 512, x.H/16, x.W/16)
+        score = self.relu(self.deconv2(score))            # size=(N, 256, x.H/8, x.W/8)
+        score = self.bn2(score + x3)                      # element-wise add, size=(N, 256, x.H/8, x.W/8)
+        score = self.bn3(self.relu(self.deconv3(score)))  # size=(N, 128, x.H/4, x.W/4)
+        score = self.bn4(self.relu(self.deconv4(score)))  # size=(N, 64, x.H/2, x.W/2)
+        score = self.bn5(self.relu(self.deconv5(score)))  # size=(N, 32, x.H, x.W)
+        score = self.classifier(score)                    # size=(N, n_class, x.H/1, x.W/1)
 
-        score = F.upsample_bilinear(score, score_pool4.size()[2:])
-        score += score_pool4
-        score = F.upsample_bilinear(score, score_pool3.size()[2:])
-        score += score_pool3
-        out = F.upsample_bilinear(score, x.size()[2:])
+        return score  # size=(N, n_class, x.H/1, x.W/1)
 
+
+class FCNs(nn.Module):
+
+    def __init__(self, pretrained_net, n_class):
+        super().__init__()
+        self.n_class = n_class
+        self.pretrained_net = pretrained_net
+        self.relu    = nn.ReLU(inplace=True)
+        self.deconv1 = nn.ConvTranspose2d(512, 512, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn1     = nn.BatchNorm2d(512)
+        self.deconv2 = nn.ConvTranspose2d(512, 256, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn2     = nn.BatchNorm2d(256)
+        self.deconv3 = nn.ConvTranspose2d(256, 128, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn3     = nn.BatchNorm2d(128)
+        self.deconv4 = nn.ConvTranspose2d(128, 64, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn4     = nn.BatchNorm2d(64)
+        self.deconv5 = nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2, padding=1, dilation=1, output_padding=1)
+        self.bn5     = nn.BatchNorm2d(32)
+        self.classifier = nn.Conv2d(32, n_class, kernel_size=1)
+
+    def forward(self, x):
+        output = self.pretrained_net(x)
+        x5 = output['x5']  # size=(N, 512, x.H/32, x.W/32)   2048
+        x4 = output['x4']  # size=(N, 512, x.H/16, x.W/16)   1024
+        x3 = output['x3']  # size=(N, 256, x.H/8,  x.W/8)    512
+        x2 = output['x2']  # size=(N, 128, x.H/4,  x.W/4)    256
+        x1 = output['x1']  # size=(N, 64, x.H/2,  x.W/2)     64
+
+        score = self.bn1(self.relu(self.deconv1(x5)))     # size=(N, 512, x.H/16, x.W/16)
+        score = score + x4                                # element-wise add, size=(N, 512, x.H/16, x.W/16)
+        score = self.bn2(self.relu(self.deconv2(score)))  # size=(N, 256, x.H/8, x.W/8)
+        score = score + x3                                # element-wise add, size=(N, 256, x.H/8, x.W/8)
+        score = self.bn3(self.relu(self.deconv3(score)))  # size=(N, 128, x.H/4, x.W/4)
+        score = score + x2                                # element-wise add, size=(N, 128, x.H/4, x.W/4)
+        score = self.bn4(self.relu(self.deconv4(score)))  # size=(N, 64, x.H/2, x.W/2)
+        score = score + x1                                # element-wise add, size=(N, 64, x.H/2, x.W/2)
+        score = self.bn5(self.relu(self.deconv5(score)))  # size=(N, 32, x.H, x.W)
+        score = self.classifier(score)                    # size=(N, n_class, x.H/1, x.W/1)
+
+        return score  # size=(N, n_class, x.H/1, x.W/1)
+
+
+class ResNet50(ResNet):
+    def __init__(self,pretrained=True):
+        super().__init__(Bottleneck, [3, 4, 6, 3])
+        #self.maxpool = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
+        if pretrained:
+            mdoel_url='https://download.pytorch.org/models/resnet50-19c8e357.pth'
+            state_dict =models.utils.load_state_dict_from_url(mdoel_url)
+            self.load_state_dict(state_dict)
+        # 
+        self.outConv2=nn.Conv2d(256,128,kernel_size=1)
+        self.outConv3=nn.Conv2d(512,256,kernel_size=1)
+        self.outConv4=nn.Conv2d(1024,512,kernel_size=1)
+        self.outConv5=nn.Conv2d(2048,512,kernel_size=1)
+        # 
+    
+    def forward(self,x):
+        # See note [TorchScript super()]
+        out={}
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x1 = self.relu(x)
+        x = self.maxpool(x1) # size=(N, 64, x.H/2,  x.W/2)     64
+        x2 = self.layer1(x) # size=(N, 128, x.H/4,  x.W/4)    256
+        x3 = self.layer2(x2) # size=(N, 256, x.H/8,  x.W/8)    512
+        x4 = self.layer3(x3) # size=(N, 512, x.H/16, x.W/16)   1024
+        x5 = self.layer4(x4) # size=(N, 512, x.H/32, x.W/32)   2048
+
+        #x = self.avgpool(x)
+        #x = torch.flatten(x, 1)
+        #x = self.fc(x)
+        out['x1']=x1
+        out['x2']=self.outConv2(x2)
+        out['x3']=self.outConv3(x3)
+        out['x4']=self.outConv4(x4)
+        out['x5']=self.outConv5(x5)
         return out
-
-
-    def init_vgg16_params(self, vgg16, copy_fc8=True):
-        blocks = [self.conv_block1,
-                  self.conv_block2,
-                  self.conv_block3,
-                  self.conv_block4,
-                  self.conv_block5]
-
-        ranges = [[0, 4], [5, 9], [10, 16], [17, 23], [24, 29]]
-        features = list(vgg16.features.children())
-
-        for idx, conv_block in enumerate(blocks):
-            for l1, l2 in zip(features[ranges[idx][0]:ranges[idx][1]], conv_block):
-                if isinstance(l1, nn.Conv2d) and isinstance(l2, nn.Conv2d):
-                    assert l1.weight.size() == l2.weight.size()
-                    assert l1.bias.size() == l2.bias.size()
-                    l2.weight.data = l1.weight.data
-                    l2.bias.data = l1.bias.data
-        for i1, i2 in zip([0, 3], [0, 3]):
-            l1 = vgg16.classifier[i1]
-            l2 = self.classifier[i2]
-            l2.weight.data = l1.weight.data.view(l2.weight.size())
-            l2.bias.data = l1.bias.data.view(l2.bias.size())
-        n_class = self.classifier[6].weight.size()[0]
-        if copy_fc8:
-            l1 = vgg16.classifier[6]
-            l2 = self.classifier[6]
-            l2.weight.data = l1.weight.data[:n_class, :].view(l2.weight.size())
-            l2.bias.data = l1.bias.data[:n_class]

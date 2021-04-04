@@ -35,7 +35,7 @@ class gfNanChangDataset(torchutil.data.Dataset):
 
     def __getitem__(self, index):
         name_=self.name_list[index]
-        seg_path_=os.path.join(self.image_path,name_)
+        seg_path_=os.path.join(self.seg_path,name_)
         label_path_=os.path.join(self.label_path,name_)
         img_path_=os.path.join(self.image_path,name_)
         seg_=np.load(seg_path_).astype(np.float)

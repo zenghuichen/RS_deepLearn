@@ -167,7 +167,7 @@ def SaveDataPath(tname,tmask,tdata,tsig,tedge,savedir,minvalue,maxvalue,isall=Fa
     if not os.path.exists(os.path.join(savedir_t,'label')):
         os.makedirs(os.path.join(savedir_t,'label'))
 
-
+    tedge=getEdge(tmask)
     # 开始保存数据
     np.save(os.path.join(savedir_t,'img',"{}".format(tname)),tdata)
     np.save(os.path.join(savedir_t,'seg',"{}".format(tname)),tedge)
