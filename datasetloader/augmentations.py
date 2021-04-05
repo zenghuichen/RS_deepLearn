@@ -31,6 +31,7 @@ class RandomCrop:
         sample['img'] = image
         sample['seg'] = seg
         sample['label'] = label
+        sample['source_image']=np.copy(image)
         return sample
 
 class RandomFlip:
@@ -38,16 +39,17 @@ class RandomFlip:
     随机翻转
     '''
     def __call__(self, sample):
-        image, seg, label = sample['img'], sample['seg'], sample['label']
+        image, seg, label,source_image = sample['img'], sample['seg'], sample['label'],sample['source_image']
         if np.random.rand() > 0.5:
             image = np.fliplr(image).copy()
+            source_image=np.fliplr(source_image).copy() # 方便查看原图
             seg = np.fliplr(seg).copy()
             label = np.fliplr(label).copy()
 
         sample['img'] = image
         sample['seg'] = seg
         sample['label'] = label
-
+        sample['source_image']=source_image
         return sample
 
 class RandomRotate:
@@ -57,12 +59,13 @@ class RandomRotate:
     如果没有无损图像旋转方法，则不应启用这个方法
     '''
     def __call__(self,sample):
-        image,seg,label=sample['img'], sample['seg'], sample['label']
+        image, seg, label,source_image = sample['img'], sample['seg'], sample['label'],sample['source_image']
         # 
         sample['img']=image
         sample['seg']=seg
         sample['label']=label
-
+        sample['source_image']=source_image
+        return sample
 class Normalize:
     '''
     数据归一化，将数据归一化到的[-1,1]之间，平均值为0
@@ -74,7 +77,7 @@ class Normalize:
         pass
 
     def __call__(self, sample):
-        image,seg,label=sample['img'], sample['seg'], sample['label']
+        image, seg, label,source_image = sample['img'], sample['seg'], sample['label'],sample['source_image']
         image=(image-self.mean_arr)/self.std_arr # z-score 零-均值归一化
         # 数据正则化 
         # 这里假设当前平均值为4000， 最大值为+_20000
@@ -83,6 +86,7 @@ class Normalize:
         sample['img']=image
         sample['seg']=seg
         sample['label']=label
+        sample['source_image']=source_image
         return sample
 class OneHot:
     '''
@@ -92,22 +96,23 @@ class OneHot:
         self.cls_num=cls_num
         pass
     def __call__(self,sample):
-        image,seg,label=sample['img'], sample['seg'], sample['label']
+        image, seg, label,source_image = sample['img'], sample['seg'], sample['label'],sample['source_image']
         new_label=np.zeros((self.cls_num,label.shape[0],label.shape[1]),dtype=np.uint8)
         for i in range(0,self.cls_num):
             new_label[i,:,:]=(label==i)*1
         sample['img']=image
         sample['seg']=seg
-        sample['label']=new_label        
+        sample['label']=new_label    
+        sample['source_image']=source_image    
         return sample
 
 class ToTensor:
     def __init__(self):
         pass
-    
     def __call__(self,sample):
-        image,seg,label=sample['img'], sample['seg'], sample['label']
+        image, seg, label,source_image = sample['img'], sample['seg'], sample['label'],sample['source_image']
         sample['img']= torch.from_numpy(np.transpose(image,(2,0,1))).float()
+        sample["source_image"]=torch.from_numpy(np.transpose(source_image,(2,0,1))).float()
         sample['seg']=torch.from_numpy(seg).long()
         sample['label']=torch.from_numpy(label).long()
         return sample

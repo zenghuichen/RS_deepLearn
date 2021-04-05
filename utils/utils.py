@@ -28,19 +28,19 @@ def get_optimizer(model,optimizerName,lr=0.01,momentum=0.9,weight_decay=0):
     return optimizer
 
 
-def save_ckpt(ckpt_dir, model, modelName,optimizer, epoch,best_miou):
+def save_ckpt(ckpt_dir, model, modelName,optimizer, epoch,best_miou,datasetName):
     state = {
         'epoch': epoch,
         'state_dict': model.state_dict(),
         'optimizer': optimizer.state_dict(),
         'best_miou':best_miou,
     }
-    ckpt_model_filename = "ckpt_{}_epoch_{}.pth".format(modelName,epoch)
+    ckpt_model_filename = "ckpt_{}_epoch_{}_dataName_{}.pth".format(modelName,epoch,datasetName)
     path = os.path.join(ckpt_dir, ckpt_model_filename)
     torch.save(state, path)
     print('{:>2} has been successfully saved'.format(path))
 
-def save_ckpt_bestmiou(ckpt_dir, model, modelName,optimizer, epoch,best_miou):
+def save_ckpt_bestmiou(ckpt_dir, model, modelName,optimizer, epoch,best_miou,datasetName):
     state = {
         'epoch': epoch,
         'state_dict': model.state_dict(),
@@ -48,7 +48,7 @@ def save_ckpt_bestmiou(ckpt_dir, model, modelName,optimizer, epoch,best_miou):
         'best_miou':best_miou,
         'best_miou_epoch':epoch,
     }
-    ckpt_model_filename = "Bestest_mIou_ckpt_{}_epoch_{}.pth".format(modelName,epoch)
+    ckpt_model_filename = "Bestest_mIou_ckpt_{}_epoch_{}_dataName_{}.pth".format(modelName,epoch,datasetName)
     path = os.path.join(ckpt_dir, ckpt_model_filename)
     torch.save(state, path)
     print('{:>2} has been successfully saved'.format(path))

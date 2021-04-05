@@ -5,7 +5,7 @@ from tensorboardX import SummaryWriter  # 记录文件
 from utils.utils import get_optimizer,get_scheduler,save_ckpt,save_ckpt_bestmiou,load_ckpt
 from utils.loginfomation import loginfomation
 from utils.loss import *
-from config.config import fcn_model_config
+
 from datasetloader.get_datasetLoader import *
 import time
 from utils.metrics import runningScore
@@ -14,7 +14,7 @@ from torchvision.utils import make_grid
 import os
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
-
+from config.config import fcn_model_config_RGB123,fcn_model_config_RGB124,fcn_model_config_RGB134,fcn_model_config_RGB234
 
 def loadconfig(config_param):
     '''
@@ -75,10 +75,10 @@ def WriterSummary(writer,sig,loss,lr_rate,image,pred,gt,seg,step,image_step):
     writer.add_scalar("{}_loss".format(sig),loss.data,step)
     if sig=="train":
         writer.add_scalar("{}_lr".format(sig),lr_rate,step)
-    
+    _,_,h,w=image.shape
     if step%image_step==0:
         # 保存训练数据
-        img=image[0,:3,:,:].clone().cpu().data.reshape(3,256,256)
+        img=image[0,:3,:,:].clone().cpu().data.reshape(3,h,w)
         pred_softmax=F.softmax(pred).max(1)[1][0,:,:].squeeze().detach().cpu().data
         pred_softmax=pred_softmax.reshape(1,pred_softmax.shape[0],pred_softmax.shape[1])
         pred_softmax=torch.cat([pred_softmax,pred_softmax,pred_softmax])
@@ -183,7 +183,7 @@ def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=Tru
         logobject.logtestlog(strlines)
     return global_step,logobject,running_metrics
 
-def save_model(ckpt_dir,epoch,model,modelName,optimizer,running_metrics,best_iou):
+def save_model(ckpt_dir,epoch,model,modelName,optimizer,running_metrics,best_iou,datasetName,issaveBestIOU=False):
     scores_val, class_iou_val = running_metrics.get_scores()
     for k, v in scores_val.items():
         print(k+': %f' % v)
@@ -192,12 +192,12 @@ def save_model(ckpt_dir,epoch,model,modelName,optimizer,running_metrics,best_iou
         print(str(k)+': %f' % v)    
         
         # --------save best model --------
-    if scores_val['Mean IoU'] > best_iou:
+    if scores_val['Mean IoU'] > best_iou and issaveBestIOU:
         best_iou = scores_val['Mean IoU']
         print('Best model updated!')
         print(class_iou_val)
         best_model_stat = {'epoch': 0, 'scores_val': scores_val, 'class_iou_val': class_iou_val}
-        save_ckpt_bestmiou(ckpt_dir, model, modelName, optimizer, epoch, best_iou)
+        save_ckpt_bestmiou(ckpt_dir, model, modelName, optimizer, epoch, best_iou,datasetName)
 
     running_metrics.reset()
     return scores_val,class_iou_val,best_iou,running_metrics
@@ -209,9 +209,6 @@ def mainTrain(config_param,isTest=True):
     teststep=0
     n_class=config_param['n_class']
     print("trainDataset=======> {}".format(config_param["datasetName"]))
-    print("model sturct=======>")
-    #print(model)
-    print("start Train=======>")
     print("model {} =======>".format(config_param["modelName"]))
     model=model.cuda() # 使用显卡
     running_metrics = runningScore(n_class)
@@ -228,15 +225,23 @@ def mainTrain(config_param,isTest=True):
             trainloader,testloader=datasetLoader['E512']
         # 开始考虑模型训练
         # 训练集
-        trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=300,writer=writer)
+        trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=100,writer=writer)
         # 测试集
-        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=300,writer=writer)
+        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=100,writer=writer)
         # 输出结果
-        scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou)
+        issavebestModel=epoch>=config_param['E512Step']
+        scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou,config_param['datasetName'],issaveBestIOU=issavebestModel)
         WriterAccurary(writer,scores_val,class_iou_val,epoch)
         logobject.logValInfo(epoch, scores_val, class_iou_val)
         if epoch%10==0:
-            save_ckpt(ckpt_dir, model, config_param["modelName"], optimizer, epoch,best_iou)
+            save_ckpt(ckpt_dir, model, config_param["modelName"], optimizer, epoch,best_iou,config_param['datasetName'])
 if __name__=="__main__":
-    config_param=fcn_model_config
+    '''FCN 模型训练 RGB'''
+    config_param=fcn_model_config_RGB123 # RGB123
+    mainTrain(config_param,isTest=True)
+    config_param=fcn_model_config_RGB124 # RGB124
+    mainTrain(config_param,isTest=True)
+    config_param=fcn_model_config_RGB134 # RGB134
+    mainTrain(config_param,isTest=True)
+    config_param=fcn_model_config_RGB234 # RGB234
     mainTrain(config_param,isTest=True)
