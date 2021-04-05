@@ -235,6 +235,8 @@ def mainTrain(config_param,isTest=True):
         logobject.logValInfo(epoch, scores_val, class_iou_val)
         if epoch%10==0:
             save_ckpt(ckpt_dir, model, config_param["modelName"], optimizer, epoch,best_iou,config_param['datasetName'])
+    writer.close()
+    print("===> {} over".format(config_param["datasetName"]))
 if __name__=="__main__":
     '''FCN 模型训练 RGB'''
     config_param=fcn_model_config_RGB123 # RGB123
