@@ -9,7 +9,7 @@ import os
 
 # 首先展示RGB数据集结构
 def showImage(tmask,tseg,RGBdata,sig):
-    fig=plt.figure(figsize=(800,800))
+    fig=plt.figure(figsize=(800,600))
     plt.subplot(1,4,1)
     plt.imshow(tmask)
     plt.title("mask {}".format(sig))
@@ -46,14 +46,14 @@ def showsigdataset(data_path,sig):
             return 
     
 
-def ShowList(data_path):
+def ShowList(data_path,sig):
     trian_path=os.path.join(data_path,"train")
     test_path=os.path.join(data_path,'test')
     # 数据集结构
     print("train")
-    showsigdataset(trian_path,'train')
+    showsigdataset(trian_path,'{}_train'.format(sig))
     print("test")
-    showsigdataset(test_path,'test')
+    showsigdataset(test_path,'{}_test'.format(sig))
     pass
 
 rootdir="/media/gis/databackup/ayc/modellist/dataset/nanchang"
@@ -69,17 +69,17 @@ RGB234_path=os.path.join(E512_path,"RGB234")
 # 开始分批展示
 print("E512")
 print("ALLBands")
-ShowList(ALLband_path)
+ShowList(ALLband_path,'E512_ALLBands')
 
 print("RGB123")
-ShowList(RGB123_path)
+ShowList(RGB123_path,'E512_RGB123')
 
 print("RGB124")
-ShowList(RGB124_path)
+ShowList(RGB124_path,'E512_RGB124')
 print("RGB134")
-ShowList(RGB134_path)
+ShowList(RGB134_path,'E512_RGB134')
 print("RGB234")
-ShowList(RGB234_path)
+ShowList(RGB234_path,'E512_RGB234')
 
 # 其次展示E256
 E256_path=os.path.join(rootdir,'E256')
@@ -91,14 +91,14 @@ RGB234_path=os.path.join(E256_path,"RGB234")
 # 开始分批展示
 print("E256")
 print("ALLBands")
-ShowList(ALLband_path)
+ShowList(ALLband_path,'E256_ALLBands')
 
 print("RGB123")
-ShowList(RGB123_path)
+ShowList(RGB123_path,'E256_RGB123')
 
 print("RGB124")
-ShowList(RGB124_path)
+ShowList(RGB124_path,'E256_RGB124')
 print("RGB134")
-ShowList(RGB134_path)
+ShowList(RGB134_path,'E256_RGB134')
 print("RGB234")
-ShowList(RGB234_path)
+ShowList(RGB234_path,'E256_RGB234')

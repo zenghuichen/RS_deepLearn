@@ -1,62 +1,131 @@
+# full assembly of the sub-parts to form the complete net
+
+import torch.nn.functional as F
+
+import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-from models.utils import *
 
-class unet(nn.Module):
+class UNet(nn.Module):
+    def __init__(self, n_channels=3, n_classes=2): #图片的通道数，1为灰度图像，3为彩色图像
+        super(UNet, self).__init__()
+        self.n_classes=n_classes
+        self.inc = inconv(n_channels, 64) #假设输入通道数n_channels为3，输出通道数为64
+        self.down1 = down(64, 128)
+        self.down2 = down(128, 256)
+        self.down3 = down(256, 512)
+        self.down4 = down(512, 512)
+        self.up1 = up(1024, 256)
+        self.up2 = up(512, 128)
+        self.up3 = up(256, 64)
+        self.up4 = up(128, 64)
+        self.outc = outconv(64, n_classes)
 
-    def __init__(self, feature_scale=4, n_classes=21, is_deconv=True, in_channels=3, is_batchnorm=True):
-        super(unet, self).__init__()
-        self.is_deconv = is_deconv
-        self.in_channels = in_channels
-        self.is_batchnorm = is_batchnorm
-        self.feature_scale = feature_scale
+    def forward(self, x):
+        x1 = self.inc(x)
+        x2 = self.down1(x1)
+        x3 = self.down2(x2)
+        x4 = self.down3(x3)
+        x5 = self.down4(x4)
+        x = self.up1(x5, x4)
+        x = self.up2(x, x3)
+        x = self.up3(x, x2)
+        x = self.up4(x, x1)
+        x = self.outc(x)
+        return x
+        #进行二分类
 
-        filters = [64, 128, 256, 512, 1024]
-        filters = [int(x / self.feature_scale) for x in filters]
+        
+# sub-parts of the U-Net model
 
-        # downsampling
-        self.conv1 = unetConv2(self.in_channels, filters[0], self.is_batchnorm)
-        self.maxpool1 = nn.MaxPool2d(kernel_size=2)
 
-        self.conv2 = unetConv2(filters[0], filters[1], self.is_batchnorm)
-        self.maxpool2 = nn.MaxPool2d(kernel_size=2)
+#实现左边的横向卷积
+class double_conv(nn.Module): 
+    '''(conv => BN => ReLU) * 2'''
+    def __init__(self, in_ch, out_ch):
+        super(double_conv, self).__init__()
+        self.conv = nn.Sequential(
+            #以第一层为例进行讲解
+            #输入通道数in_ch，输出通道数out_ch，卷积核设为kernal_size 3*3，padding为1，stride为1，dilation=1
+            #所以图中H*W能从572*572 变为 570*570,计算为570 = ((572 + 2*padding - dilation*(kernal_size-1) -1) / stride ) +1
+            nn.Conv2d(in_ch, out_ch, 3, padding=1), 
+            nn.BatchNorm2d(out_ch), #进行批标准化，在训练时，该层计算每次输入的均值与方差，并进行移动平均
+            nn.ReLU(inplace=True), #激活函数
+            nn.Conv2d(out_ch, out_ch, 3, padding=1), #再进行一次卷积，从570*570变为 568*568
+            nn.BatchNorm2d(out_ch),
+            nn.ReLU(inplace=True)
+        )
 
-        self.conv3 = unetConv2(filters[1], filters[2], self.is_batchnorm)
-        self.maxpool3 = nn.MaxPool2d(kernel_size=2)
+    def forward(self, x):
+        x = self.conv(x)
+        return x
 
-        self.conv4 = unetConv2(filters[2], filters[3], self.is_batchnorm)
-        self.maxpool4 = nn.MaxPool2d(kernel_size=2)
+#实现左边第一行的卷积
+class inconv(nn.Module):# 
+    def __init__(self, in_ch, out_ch):
+        super(inconv, self).__init__()
+        self.conv = double_conv(in_ch, out_ch) # 输入通道数in_ch为3， 输出通道数out_ch为64
 
-        self.center = unetConv2(filters[3], filters[4], self.is_batchnorm)
+    def forward(self, x):
+        x = self.conv(x)
+        return x
 
-        # upsampling
-        self.up_concat4 = unetUp(filters[4], filters[3], self.is_deconv)
-        self.up_concat3 = unetUp(filters[3], filters[2], self.is_deconv)
-        self.up_concat2 = unetUp(filters[2], filters[1], self.is_deconv)
-        self.up_concat1 = unetUp(filters[1], filters[0], self.is_deconv)
+#实现左边的向下池化操作，并完成另一层的卷积
+class down(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super(down, self).__init__()
+        self.mpconv = nn.Sequential(
+            nn.MaxPool2d(2),
+            double_conv(in_ch, out_ch)
+        )
 
-        # final conv (without any concat)
-        self.final = nn.Conv2d(filters[0], n_classes, 1)
+    def forward(self, x):
+        x = self.mpconv(x)
+        return x
 
-    def forward(self, inputs):
-        conv1 = self.conv1(inputs)
-        maxpool1 = self.maxpool1(conv1)
+#实现右边的向上的采样操作，并完成该层相应的卷积操作
+class up(nn.Module): 
+    def __init__(self, in_ch, out_ch, bilinear=True):
+        super(up, self).__init__()
 
-        conv2 = self.conv2(maxpool1)
-        maxpool2 = self.maxpool2(conv2)
+        #  would be a nice idea if the upsampling could be learned too,
+        #  but my machine do not have enough memory to handle all those weights
+        if bilinear:#声明使用的上采样方法为bilinear——双线性插值，默认使用这个值，计算方法为 floor(H*scale_factor)，所以由28*28变为56*56
+            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+        else: #否则就使用转置卷积来实现上采样，计算式子为 （Height-1）*stride - 2*padding -kernal_size +output_padding
+            self.up = nn.ConvTranspose2d(in_ch//2, in_ch//2, 2, stride=2)
 
-        conv3 = self.conv3(maxpool2)
-        maxpool3 = self.maxpool3(conv3)
+        self.conv = double_conv(in_ch, out_ch)
 
-        conv4 = self.conv4(maxpool3)
-        maxpool4 = self.maxpool4(conv4)
+    def forward(self, x1, x2): #x2是左边特征提取传来的值
+        #第一次上采样返回56*56，但是还没结束
+        x1 = self.up(x1)
+        
+        # input is CHW, [0]是batch_size, [1]是通道数，更改了下，与源码不同
+        diffY = x1.size()[2] - x2.size()[2] #得到图像x2与x1的H的差值，56-64=-8
+        diffX = x1.size()[3] - x2.size()[3] #得到图像x2与x1的W差值，56-64=-8
 
-        center = self.center(maxpool4)
-        up4 = self.up_concat4(conv4, center)
-        up3 = self.up_concat3(conv3, up4)
-        up2 = self.up_concat2(conv2, up3)
-        up1 = self.up_concat1(conv1, up2)
+        #用第一次上采样为例,即当上采样后的结果大小与右边的特征的结果大小不同时，通过填充来使x2的大小与x1相同
+        #对图像进行填充(-4,-4,-4,-4),左右上下都缩小4，所以最后使得64*64变为56*56
+        x2 = F.pad(x2, (diffX // 2, diffX - diffX//2,
+                        diffY // 2, diffY - diffY//2))
+        
+        # for padding issues, see 
+        # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
+        # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
+        
+        #将最后上采样得到的值x1和左边特征提取的值进行拼接,dim=1即在通道数上进行拼接，由512变为1024
+        x = torch.cat([x2, x1], dim=1)
+        x = self.conv(x)
+        return x
 
-        final = self.final(up1)
+#实现右边的最高层的最右边的卷积
+class outconv(nn.Module):
+    def __init__(self, in_ch, out_ch):
+        super(outconv, self).__init__()
+        self.conv = nn.Conv2d(in_ch, out_ch, 1)
 
-        return final
+    def forward(self, x):
+        x = self.conv(x)
+        return x
