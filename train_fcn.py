@@ -3,7 +3,7 @@ from models.get_models import get_models
 import argparse
 from tensorboardX import SummaryWriter  # 记录文件
 from utils.utils import get_optimizer,get_scheduler,save_ckpt,save_ckpt_bestmiou,load_ckpt
-from utils.loginfomation import loginfomation
+from utils.loginfomation import loginfomation,WriterAccurary,WriterSummary
 from utils.loss import *
 
 from datasetloader.get_datasetLoader import *
@@ -14,7 +14,7 @@ from torchvision.utils import make_grid
 import os
 import torch.nn.functional as F
 from matplotlib import pyplot as plt
-from config.config import fcn_model_config_RGB123,fcn_model_config_RGB124,fcn_model_config_RGB134,fcn_model_config_RGB234
+from config.config_fcn import fcn_model_config_RGB123,fcn_model_config_RGB124,fcn_model_config_RGB134,fcn_model_config_RGB234
 
 def loadconfig(config_param):
     '''
@@ -67,50 +67,6 @@ def DrawImage(img,pre,gt,logresult_dir,epoch=0,sig='train'):
     plt.title('gt')
     plt.pause(0.01) # 停留1s
     plt.savefig(os.path.join(logresult_dir,"sig_{}".format(epoch)))
-
-def WriterSummary(writer,sig,loss,lr_rate,image,pred,gt,seg,step,image_step):
-    '''
-    记录当前数据的情况，并记录训练中的相关信息
-    '''
-    writer.add_scalar("{}_loss".format(sig),loss.data,step)
-    if sig=="train":
-        writer.add_scalar("{}_lr".format(sig),lr_rate,step)
-    _,_,h,w=image.shape
-    if step%image_step==0:
-        # 保存训练数据
-        img=image[0,:3,:,:].clone().cpu().data.reshape(3,h,w)
-        pred_softmax=F.softmax(pred).max(1)[1][0,:,:].squeeze().detach().cpu().data
-        pred_softmax=pred_softmax.reshape(1,pred_softmax.shape[0],pred_softmax.shape[1])
-        pred_softmax=torch.cat([pred_softmax,pred_softmax,pred_softmax])
-        pred_softmax=pred_softmax*255
-
-        gt_img=gt[0,0,:,:].detach().cpu().data
-        gt_img=gt_img*255
-        gt_img=gt_img.reshape(1,gt_img.shape[0],gt_img.shape[1])
-        gt_img=torch.cat([gt_img,gt_img,gt_img])
-
-        seg_img=seg[0,:,:]*255
-        seg_img=seg_img.reshape(1,seg_img.shape[0],seg_img.shape[1])
-        seg_img=torch.cat([seg_img,seg_img,seg_img])
-        writer_img=make_grid([img,pred_softmax,gt_img,seg_img],nrow=4)
-        # 输出对象
-        plt.cla()
-        writer_img_np=writer_img.detach().cpu().numpy()
-        writer_img_np=np.transpose(writer_img_np,(1,2,0)).astype(np.uint8)
-        plt.imshow(writer_img_np)
-        plt.title("{}_{}".format(sig,step))
-        plt.show()
-        plt.pause(0.1)
-        writer.add_image("{}_img".format(sig),writer_img,step)
-    pass
-
-def WriterAccurary(writer,scores_val,class_iou_val,epoch):
-    for k, v in scores_val.items():
-        writer.add_scalar("test_scores_{}".format(k),v,epoch)
-
-    for k, v in class_iou_val.items():
-        writer.add_scalar("test_class_{}".format(k),v,epoch)
-
 
 
 def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=0,image_step=100,writer=None,datasetname=""):
@@ -234,9 +190,9 @@ def mainTrain(config_param,isTest=True):
             trainloader,testloader=datasetLoader['E512']
         # 开始考虑模型训练
         # 训练集
-        trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=10,writer=writer,datasetname=config_param['datasetName'])
+        trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=100,writer=writer,datasetname=config_param['datasetName'])
         # 测试集
-        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=10,writer=writer,datasetname=config_param['datasetName'])
+        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=100,writer=writer,datasetname=config_param['datasetName'])
         # 输出结果
         issavebestModel=epoch>=config_param['E512Step']
         scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou,config_param['datasetName'],issaveBestIOU=issavebestModel)
@@ -249,7 +205,7 @@ def mainTrain(config_param,isTest=True):
 if __name__=="__main__":
     '''FCN 模型训练 RGB'''
     # 自动绘制图像
-    plt.figure(figsize=(13,3))
+    plt.figure(figsize=(8,8))
     plt.ion()
     #config_param=fcn_model_config_RGB123 # RGB123
     #mainTrain(config_param,isTest=True)
