@@ -48,7 +48,7 @@ def save_ckpt_bestmiou(ckpt_dir, model, modelName,optimizer, epoch,best_miou,dat
         'best_miou':best_miou,
         'best_miou_epoch':epoch,
     }
-    ckpt_model_filename = "Bestest_mIou_ckpt_{}_epoch_{}_dataName_{}.pth".format(modelName,epoch,datasetName)
+    ckpt_model_filename = "Bestest_mIou_ckpt_{}_dataName_{}.pth".format(modelName,datasetName)
     path = os.path.join(ckpt_dir, ckpt_model_filename)
     torch.save(state, path)
     print('{:>2} has been successfully saved'.format(path))

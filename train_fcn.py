@@ -192,7 +192,7 @@ def mainTrain(config_param,isTest=True):
         # 训练集
         trainstep,logobject,model,scheduler,optimizer=train(model,trainloader,epoch,n_class,optimizer,scheduler,lossfunction,logobject,muilt=True,global_step=trainstep,image_step=100,writer=writer,datasetname=config_param['datasetName'])
         # 测试集
-        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=100,writer=writer,datasetname=config_param['datasetName'])
+        teststep,logobject,running_metrics=test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=True,global_step=teststep,image_step=10,writer=writer,datasetname=config_param['datasetName'])
         # 输出结果
         issavebestModel=epoch>=config_param['E512Step']
         scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou,config_param['datasetName'],issaveBestIOU=issavebestModel)
