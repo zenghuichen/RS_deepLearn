@@ -12,7 +12,7 @@ class FocalLoss(nn.Module):
     '''
     FocalLoss 损失函数，这里使用了nlloss 作为基础实现组件
     '''
-    def __init__(self,weight,gamma,reduction='mean'):
+    def __init__(self,weight,gamma,reduction='mean',scale=100):
         super(FocalLoss,self).__init__()
         
         self.gamma=gamma
@@ -21,7 +21,7 @@ class FocalLoss(nn.Module):
             self.weight=None
         else:
             self.weight=torch.tensor(weight).cuda()
-        
+        self.scale=scale # 缩放系数，防止出现nan
     def forward(self,inputs,gt):
         '''
         假定input没有执行softmax函数
@@ -31,9 +31,11 @@ class FocalLoss(nn.Module):
       
         for i in range(gt.shape[1]):
             loss_tatal=loss_tatal-self.weight[i]*torch.pow(1-inputs[:,i,:,:],self.gamma)*torch.log10(inputs[:,i,:,:])*gt[:,i,:,:]    # Focal Loss 累加方法 --直接构建公式
-        loss_value=torch.sum(loss_tatal)/100
-        
-        if self.reduction=='none':
+        if self.reduction =="sum":
+            loss_value=torch.sum(loss_tatal)/self.scale
+        elif self.reduction =="mean":
+            loss_value=torch.sum(loss_tatal)/(gt.shape[2]*gt.shape[3])
+        elif self.reduction=='none':
             return torch.sum(loss_value)
         return loss_value 
 
@@ -93,7 +95,8 @@ def get_lossfunction(config_param):
     
     return  FocalLoss(weight=config_param["lossfunction"]['weight'],
                         gamma=config_param['lossfunction']['gamma'],
-                        reduction=config_param['lossfunction']['reduction']) # CrossEntropyLoss(weight=config_param['lossfunction']["weight"])
+                        reduction=config_param['lossfunction']['reduction'],
+                        scale=config_param['lossfunction']['scale']) # CrossEntropyLoss(weight=config_param['lossfunction']["weight"])
     
     #return CrossEntropyLoss2d(weight=config_param["lossfunction"]['weight'])
     #return SoftDiceLoss(weight=config_param["lossfunction"]['weight'],reduction=config_param['lossfunction']['reduction'])

@@ -145,6 +145,8 @@ fcn_model_config_RGB234={
     'checkpoint':"/home/gis/gisdata/databackup/ayc/modellist/RGB123_fcn_result/checkpoint"
 }
 ```
-2021 4.11 重新调整学习率的变化情况，并且重新训练
+2021 4.11 10:30 重新调整学习率的变化情况，并且重新训练
+2021 4.11 11:06 移除了unet与segnet训练的单独文件，并设置了当loss为nan时，中断当前的出现问题的训练模型与数据集，并继续下一个训练任务。
+
 
 

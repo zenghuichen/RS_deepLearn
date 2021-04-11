@@ -12,7 +12,7 @@ unet_model_config_RGB123={
     "maxepoch":500,
     'optimizer':"SGD",
     "scheduler":"ReduceLROnPlateau",
-    "lossfunction":{"name":"FocalLoss","weight":[0.023296172671643,0.976703827328357],'reduction':'sum','gamma':2},#{"name":"focalloss","gamma":0, "weight":[1,10], 'size_average':True},
+    "lossfunction":{"name":"FocalLoss","weight":[0.023296172671643,0.976703827328357],'reduction':'sum','gamma':2,'scale':10000},#{"name":"focalloss","gamma":0, "weight":[1,10], 'size_average':True},
     "batch_size":16,
     "num_work":8,
     "writerpath":"/home/gis/gisdata/databackup/ayc/modellist/RGB123_unet_result/writerlog",# writerpath地址路径
@@ -30,7 +30,7 @@ unet_model_config_RGB124={
     "maxepoch":500,
     'optimizer':"SGD",
     "scheduler":"ReduceLROnPlateau",
-    "lossfunction":{"name":"FocalLoss","weight":[0.023296172671643,0.976703827328357],'reduction':'sum','gamma':2},#{"name":"focalloss","gamma":0, "weight":[1,10], 'size_average':True},
+    "lossfunction":{"name":"FocalLoss","weight":[0.023296172671643,0.976703827328357],'reduction':'sum','gamma':2,'scale':10000},#{"name":"focalloss","gamma":0, "weight":[1,10], 'size_average':True},
     "batch_size":16,
     "num_work":8,
     "writerpath":"/home/gis/gisdata/databackup/ayc/modellist/RGB124_unet_result/writerlog",# writerpath地址路径
@@ -48,7 +48,7 @@ unet_model_config_RGB134={
     "maxepoch":500,
     'optimizer':"SGD",
     "scheduler":"ReduceLROnPlateau",
-    "lossfunction":{"name":"FocalLoss","weight":[0.023296172671643,0.976703827328357],'reduction':'sum','gamma':2},#{"name":"focalloss","gamma":0, "weight":[1,10], 'size_average':True},
+    "lossfunction":{"name":"FocalLoss","weight":[0.023296172671643,0.976703827328357],'reduction':'sum','gamma':2,'scale':10000},#{"name":"focalloss","gamma":0, "weight":[1,10], 'size_average':True},
     "batch_size":16,
     "num_work":8,
     "writerpath":"/home/gis/gisdata/databackup/ayc/modellist/RGB134_unet_result/writerlog",# writerpath地址路径
@@ -66,7 +66,7 @@ unet_model_config_RGB234={
     "maxepoch":500,
     'optimizer':"SGD",
     "scheduler":"ReduceLROnPlateau",
-    "lossfunction":{"name":"FocalLoss","weight":[0.023296172671643,0.976703827328357],'reduction':'sum','gamma':2},#{"name":"focalloss","gamma":0, "weight":[1,10], 'size_average':True},
+    "lossfunction":{"name":"FocalLoss","weight":[0.023296172671643,0.976703827328357],'reduction':'sum','gamma':2,'scale':10000},#{"name":"focalloss","gamma":0, "weight":[1,10], 'size_average':True},
     "batch_size":16,
     "num_work":8,
     "writerpath":"/home/gis/gisdata/databackup/ayc/modellist/RGB234_unet_result/writerlog",# writerpath地址路径
