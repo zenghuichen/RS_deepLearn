@@ -188,9 +188,6 @@ def mainTrain(config_param,isTest=True):
     model=model.cuda() # 使用显卡
     running_metrics = runningScore(n_class)
 
-
-
-
     for epoch in range(startepoch,config_param["maxepoch"]):
         if epoch<config_param['E512Step']:
             trainloader,testloader=datasetLoader['E256']
@@ -225,7 +222,7 @@ if __name__=="__main__":
     for config_param in config_params:
         try:
             mainTrain(config_param,isTest=True)
-        except SystemError:
+        except :
             errmodels.append(config_param)
             print("the loss of train is nan !!!! model Name:{} , Dataset Name：{}".format(config_param["modelName"],config_param['datasetName']))
     plt.close()

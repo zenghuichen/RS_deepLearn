@@ -1,7 +1,6 @@
 '''
 记录训练中的使用的参数
 '''
-
 '''fcn'''
 fcn_model_config_RGB123={
     'datasetName':"RGB123",
