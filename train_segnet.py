@@ -72,6 +72,9 @@ def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,log
         outputs = model(images)
         if muilt:
             loss=lossfunction(outputs,labels.cuda())
+            if torch.isnan(loss):
+                print("because loss is nan,the process of train must stop,and the program also exit.")
+                exit()
             #loss=lossfunction(F.log_softmax(outputs),label.cuda())
         else:
             pass
@@ -80,7 +83,7 @@ def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,log
         scheduler.step(loss)  # 调整学习率
         # 输出结果
         strlines.append("{} train epoch:{},iter:{}/{},loss:{},learn_rate:{},itertime:{}".format(datasetname,epoch,i,datalen,loss.detach().cpu().data, optimizer.param_groups[0]['lr'],time.time()-end))
-        print(strlines[-1])
+        print("\r{}".format(strlines[-1]),end="")
         # writer 加载数据
         if writer is None:
             global_step=global_step+1
@@ -90,7 +93,7 @@ def train(model,trainloader,epoch,n_classes,optimizer,scheduler,lossfunction,log
 
         global_step=global_step+1
 
-    #print("epoch:{},times:{}".format(epoch,time.time()-start))
+    print("\nepoch:{},times:{}".format(epoch,time.time()-start))
     logobject.logTrainlog(strlines)
     #print("本批次的运算时间:{}，平均时间:{}".format(end-start,(end-start)/datalen))
 
@@ -123,7 +126,7 @@ def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=Tru
             # 统计损失值
             running_metrics.update(gt.numpy(), pred.numpy()>0.5)
             strlines.append("{}  test epoch:{},iter:{}/{},loss:{},itertime:{}".format(datasetname,epoch,i,datalen,loss.detach().cpu().data, time.time()-end))
-            print(strlines[-1])
+            print("\r{}".format(strlines[-1]),end="")
             # writer 加载数据
             if writer is None:
                 global_step=global_step+1
@@ -132,7 +135,7 @@ def test(model,testloader,running_metrics,epoch,lossfunction,logobject,muilt=Tru
             WriterSummary(writer,'test',loss,0.01,source_img,outputs,label,seg,global_step,image_step=image_step)
 
             global_step=global_step+1
-        print("epoch:{},times:{}".format(epoch,time.time()-start))
+        print("\nepoch:{},times:{}".format(epoch,time.time()-start))
         logobject.logtestlog(strlines)
     return global_step,logobject,running_metrics
 

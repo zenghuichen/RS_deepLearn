@@ -145,6 +145,6 @@ fcn_model_config_RGB234={
     'checkpoint':"/home/gis/gisdata/databackup/ayc/modellist/RGB123_fcn_result/checkpoint"
 }
 ```
-
+2021 4.11 重新调整学习率的变化情况，并且重新训练
 
 
