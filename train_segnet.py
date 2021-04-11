@@ -35,7 +35,7 @@ def loadconfig(config_param):
     # 创建模型
     model=get_models(config_param["modelName"],num_class=config_param['n_class'])
     optimizer=get_optimizer(model,config_param['optimizer'],lr=config_param['learn_rate'],momentum=0.9,weight_decay=0)
-    scheduler=get_scheduler(optimizer,config_param['scheduler'],mode="min",patience=10*len(E_train_loader_256)) # min对应loss
+    scheduler=get_scheduler(optimizer,config_param['scheduler'],mode="min",patience=4*len(E_train_loader_512)) # min对应loss
     # 预加载模型
     startepoch=0
     best_iou=-1

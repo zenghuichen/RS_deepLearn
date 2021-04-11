@@ -14,7 +14,7 @@ def get_scheduler(optimizer,schedulerName="ReduceLROnPlateau",mode="min",patienc
     https://blog.csdn.net/weixin_43722026/article/details/103271611
     '''
     if schedulerName=="ReduceLROnPlateau":
-        scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode=mode, factor=0.85, patience=patience, verbose=False, threshold=0.9, threshold_mode='rel', cooldown=0, min_lr=1e-08, eps=1e-08)
+        scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode=mode, factor=0.9, patience=patience, verbose=False, threshold=0.9, threshold_mode='rel', cooldown=0, min_lr=1e-08, eps=1e-08)
     return scheduler
 
 def get_optimizer(model,optimizerName,lr=0.01,momentum=0.9,weight_decay=0):
