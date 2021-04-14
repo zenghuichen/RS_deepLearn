@@ -49,28 +49,38 @@ class loginfomation(object):
             for lines in stringline:
                 fp.write("{}\n".format(lines))    
 
-def DrawImage(img,pre,gt,seg,logresult_dir=None,epoch=0,sig='train'):
+def DrawImage(img,pre,gt,pre_softmax,seg,logresult_dir=None,epoch=0,sig='train'):
     '''自动动画绘制图像 需要提前 plt.ion() 初始化绘制环境'''
     '''img,pre,gt 数据全部都为numpy'''
+    '''这里选择重新调整样本集的展示，将训练结果与实际结果合并展示成为一张图，并考虑写入训练日志中'''
+    img=np.transpose(img,(1,2,0)).astype(np.int)
+    pre=np.transpose(pre,(1,2,0)).astype(np.float)[:,:,0].reshape(pre.shape[1],pre.shape[2],1)
+    gt=np.transpose(gt,(1,2,0)).astype(np.float)[:,:,0].reshape(gt.shape[1],gt.shape[2],1)
+    seg=np.transpose(seg,(1,2,0)).astype(np.float)[:,:,0].reshape(seg.shape[1],seg.shape[2],1)
+    pre_softmax=pre_softmax
+    pre_gt=np.concatenate([pre,gt,seg],axis=2)
     plt.cla()
-    plt.subplot(2,2,1)
-    plt.imshow(np.transpose(img,(1,2,0)).astype(np.int))
+    plt.subplot(1,3,1)
+    plt.imshow(img)
     plt.title('image_{}'.format(sig))
-    plt.subplot(2,2,2)
-    plt.imshow(np.transpose(pre,(1,2,0)).astype(np.float))
+    plt.axis('off')
+
+    plt.subplot(1,3,2)
+    plt.imshow(pre_gt)
     plt.title('pred_{}'.format(sig))
-    plt.subplot(2,2,3)
-    plt.imshow(np.transpose(gt,(1,2,0)).astype(np.float))
-    plt.title('gt_{}'.format(sig))
-    plt.subplot(2,2,4)
-    plt.imshow(np.transpose(seg,(1,2,0)).astype(np.float))
-    plt.title('seg_{}'.format(sig))
+    plt.axis('off')
+
+    plt.subplot(1,3,3)
+    plt.imshow(pre_softmax)
+    plt.title('pre_softmax_{}'.format(sig))
+    plt.axis('off')
+
     plt.pause(0.01) # 停留1s
     if not logresult_dir is None:
         plt.savefig(os.path.join(logresult_dir,"sig_{}".format(epoch)))
 
 
-def WriterSummary(writer,sig,loss,lr_rate,image,pred,gt,seg,step,image_step,isShow=True):
+def WriterSummary(writer,sig,loss,lr_rate,image,pred,gt,seg,step,image_step,isShow=True,logresult_dir=None,):
     '''
     记录当前数据的情况，并记录训练中的相关信息
     '''
@@ -81,10 +91,12 @@ def WriterSummary(writer,sig,loss,lr_rate,image,pred,gt,seg,step,image_step,isSh
     if step%image_step==0:
         # 保存训练数据
         img=image[0,:3,:,:].clone().cpu().data.reshape(3,h,w)
-        pred_softmax=F.softmax(pred).max(1)[1][0,:,:].squeeze().detach().cpu().data
-        pred_softmax=pred_softmax.reshape(1,pred_softmax.shape[0],pred_softmax.shape[1])
-        pred_softmax=torch.cat([pred_softmax,pred_softmax,pred_softmax])
-        pred_softmax=pred_softmax
+        pred_softmax=F.softmax(pred)
+        pred_softmax_1=torch.argmax(pred_softmax,dim=1)
+        pred_softmax_1=pred_softmax_1[0,:,:].squeeze().detach().cpu().data
+        pred_softmax_1=pred_softmax_1.reshape(1,pred_softmax_1.shape[0],pred_softmax_1.shape[1])
+        pred_softmax_1=torch.cat([pred_softmax_1,pred_softmax_1,pred_softmax_1])
+        pred_softmax_1=pred_softmax_1
 
         gt_img=gt[0,0,:,:].detach().cpu().data
         gt_img=gt_img
@@ -94,13 +106,16 @@ def WriterSummary(writer,sig,loss,lr_rate,image,pred,gt,seg,step,image_step,isSh
         seg_img=seg[0,:,:]
         seg_img=seg_img.reshape(1,seg_img.shape[0],seg_img.shape[1])
         seg_img=torch.cat([seg_img,seg_img,seg_img])
-        writer_img=make_grid([img,pred_softmax,gt_img,seg_img],nrow=4)
+        writer_img=make_grid([img,pred_softmax_1,gt_img,seg_img],nrow=4)
+
         if isShow:
             DrawImage(img.cpu().numpy(),
-                        pred_softmax.cpu().numpy(),
+                        pred_softmax_1.detach().cpu().numpy(),
                         gt_img.cpu().numpy(),
+                        pred_softmax.detach()[0,1,:,:].cpu().numpy(),
                         seg_img.cpu().numpy(),
                         epoch=image_step,
+                        logresult_dir=logresult_dir,
                         sig=sig)
 
         writer.add_image("{}_img".format(sig),writer_img,step)

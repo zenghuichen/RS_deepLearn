@@ -44,6 +44,7 @@ class gfNanChangDataset(torchutil.data.Dataset):
         # 数据预处理
 
         if self.augmentation is None:
+  
             return {'img':img_,"seg":seg_,"label":label_,"name":name_}
         output_= {'img':img_,"seg":seg_,"label":label_,"name":name_,'source_image':np.copy(img_)}
         output_=self.augmentation(output_)

@@ -8,7 +8,7 @@ segnet_model_config_RGB123={
     'n_class':2,
     'pre_model_path':None,#'/media/gis/databackup/ayc/modellist/result/checkpoint/ckpt_fcn_epoch_860.pth',# 预加载模型
     "learn_rate":0.01,
-    'E512Step':20,
+    'E512Step':10,
     "maxepoch":500,
     'optimizer':"SGD",
     "scheduler":"ReduceLROnPlateau",
@@ -26,7 +26,7 @@ segnet_model_config_RGB124={
     'n_class':2,
     'pre_model_path':None,#'/media/gis/databackup/ayc/modellist/result/checkpoint/ckpt_fcn_epoch_860.pth',# 预加载模型
     "learn_rate":0.01,
-    'E512Step':20,
+    'E512Step':10,
     "maxepoch":500,
     'optimizer':"SGD",
     "scheduler":"ReduceLROnPlateau",
@@ -44,7 +44,7 @@ segnet_model_config_RGB134={
     'n_class':2,
     'pre_model_path':None,#'/media/gis/databackup/ayc/modellist/result/checkpoint/ckpt_fcn_epoch_860.pth',# 预加载模型
     "learn_rate":0.01,
-    'E512Step':20,
+    'E512Step':10,
     "maxepoch":500,
     'optimizer':"SGD",
     "scheduler":"ReduceLROnPlateau",
@@ -62,7 +62,7 @@ segnet_model_config_RGB234={
     'n_class':2,
     'pre_model_path':None,#'/media/gis/databackup/ayc/modellist/result/checkpoint/ckpt_fcn_epoch_860.pth',# 预加载模型
     "learn_rate":0.01,
-    'E512Step':20,
+    'E512Step':10,
     "maxepoch":500,
     'optimizer':"SGD",
     "scheduler":"ReduceLROnPlateau",

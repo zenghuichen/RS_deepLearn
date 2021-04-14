@@ -31,6 +31,7 @@ class FocalLoss(nn.Module):
       
         for i in range(gt.shape[1]):
             loss_tatal=loss_tatal-self.weight[i]*torch.pow(1-inputs[:,i,:,:],self.gamma)*torch.log10(inputs[:,i,:,:])*gt[:,i,:,:]    # Focal Loss 累加方法 --直接构建公式
+        
         if self.reduction =="sum":
             loss_value=torch.sum(loss_tatal)/self.scale
         elif self.reduction =="mean":

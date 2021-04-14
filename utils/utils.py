@@ -51,7 +51,7 @@ def save_ckpt_bestmiou(ckpt_dir, model, modelName,optimizer, epoch,best_miou,dat
     ckpt_model_filename = "Bestest_mIou_ckpt_{}_dataName_{}.pth".format(modelName,datasetName)
     path = os.path.join(ckpt_dir, ckpt_model_filename)
     torch.save(state, path)
-    print('{:>2} has been successfully saved'.format(path))
+    print('Bestest Model {:>2} has been successfully saved'.format(path))
 
 def load_ckpt(model, optimizer, model_file, device):
     if os.path.isfile(model_file):

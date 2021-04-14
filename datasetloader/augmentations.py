@@ -107,12 +107,17 @@ class OneHot:
         return sample
 
 class ToTensor:
-    def __init__(self):
-        pass
+    def __init__(self,driver='cpu'):
+        self.driver=driver
     def __call__(self,sample):
         image, seg, label,source_image = sample['img'], sample['seg'], sample['label'],sample['source_image']
         sample['img']= torch.from_numpy(np.transpose(image,(2,0,1))).float()
         sample["source_image"]=torch.from_numpy(np.transpose(source_image,(2,0,1))).float()
         sample['seg']=torch.from_numpy(seg).long()
         sample['label']=torch.from_numpy(label).long()
+        if self.driver=='cuda':
+            sample['img']=sample['img'].cuda()
+            sample["source_image"]=sample["source_image"].cuda()
+            sample['seg']=sample['seg'].cuda()
+            sample['label']=sample['label'].cuda()
         return sample
