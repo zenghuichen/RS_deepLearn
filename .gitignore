@@ -1,0 +1,9 @@
+*.pyc
+*.pth
+*.pkl
+*.o
+*.npy
+*.tif
+*.png
+/result/writerlog/*
+/model_hastrained_log/*
