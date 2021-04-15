@@ -117,14 +117,14 @@ def train_main(config_param,muilt=True):
         trainloader_iter=trainloader_ls.pop()
         testloader_iter=testloader_ls.pop()
         '''多线程构建数据集加载对象'''
-        '''
+
         if epoch>config_param['E512Step']-1:
             dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E512',))
             dataserLoader_iter_th.start()
         else:
             dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E256',))
             dataserLoader_iter_th.start()
-        '''
+
         '''模型训练阶段'''
         start = time.time()
         model.train()
@@ -212,17 +212,17 @@ def train_main(config_param,muilt=True):
         logobject.logValInfo(epoch, scores_val, class_iou_val)
         if epoch % 10 == 0:
             save_ckpt(ckpt_dir, model, config_param["modelName"], optimizer, epoch, best_iou, config_param['datasetName'])
-        '''获得加载集'''
+        '''获得加载集
         trainloader_iter, testloader_iter, train_len, test_len=generator_datasetloader_iter(config_param,'E256')
         trainloader_ls=[trainloader_iter]
         testloader_ls=[testloader_iter]        
-        ''' windows 
+        ''' # windows
         if not dataserLoader_iter_th is None:
             dataserLoader_iter_th.join()
             trainloader_iter, testloader_iter, train_len, test_len=dataserLoader_iter_th.getResult()
             trainloader_ls.append(trainloader_iter)
             testloader_ls.append(testloader_iter)
-        '''
+
 
     writer.close()
     print("===> {} over".format(config_param["datasetName"]))
