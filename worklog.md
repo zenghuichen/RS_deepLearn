@@ -159,6 +159,12 @@ fcn_model_config_RGB234={
 + 调整了全部的模型结构，增加了波段指数运算的功能
 存在问题
 + 调整数据集因为数据集本身存在负值，导致训练时出现了nan值
-2021 4.15 09：37 
+2021 4.15 09:37 
 已解决任务
 + 解决了指数数据集本身负值对于训练的影响，模型已经可以正常训练
+2021 4.15 11:01
+查找相关超像素与遥感影像结合的论文
++ Pixel-wise classification method for high resolution remote sensing imagery using deep neural network
++ Selective search for object recognition 
++ classification with an edge：improving semantic segmentation with boundary detection
++ Multilevel Cloud Detection in Remote Sensing Images Based on Deep Learning
