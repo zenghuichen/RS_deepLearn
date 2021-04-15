@@ -78,5 +78,6 @@
 | 指数数据集  | training | training | model_er | designing | designing |
 | allbands  | wait | wait | model_err | designing | designing |
 
-## 文章基本流程图
+## 文章基本结构图
 ![avatar](./基本流程图.png)
+在第四章中，为了获得更好的效果，特意使用了边界敏感损失项，但是并没有在结构图中的体现
