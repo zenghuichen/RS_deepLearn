@@ -5,5 +5,6 @@
 *.npy
 *.tif
 *.png
+*.zip
 /result/writerlog/*
 /model_hastrained_log/*
