@@ -31,3 +31,5 @@
 | 指数数据集  | training | training | model_er | designing | designing |
 | allbands  | wait | wait | model_err | designing | designing |
 
+#### 文章基本流程图
+![avatar](./基本流程图.png)
