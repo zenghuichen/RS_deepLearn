@@ -23,3 +23,8 @@
 | 指数数据集  | training | training | model_er | designing | designing |
 | allbands  | wait | wait | model_err | designing | designing |
 
+- [ ] Mercury
+- [x] Venus
+- [x] Earth (Orbit/Moon)
+- [x] Mars
+- [ ] Jupiter
