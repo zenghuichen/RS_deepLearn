@@ -16,9 +16,9 @@
 需要训练的数据集
 |  数据集   | fcn  | unet| segnet | superPixel-encodingNet | SPE-decouple-Net|
 |  ----  | ----  |  ----  |  ----  |  ----  |  ----  |
-| RGB123  | 单元格 | 单元格 | 单元格 | 单元格 | 单元格 |
-| RGB124  | 单元格 | 单元格 | 单元格 | 单元格 | 单元格 |
-| RGB134  | 单元格 | 单元格 | 单元格 | 单元格 | 单元格 |
-| RGB234  | 单元格 | 单元格 | 单元格 | 单元格 | 单元格 |
-| 指数数据集  | 单元格 | 单元格 | 单元格 | 单元格 | 单元格 |
-| allbands  | 单元格 | 单元格 | 单元格 | 单元格 | 单元格 |
+| RGB123  | ok | ok | model_err | designing | designing |
+| RGB124  | ok | ok | model_err | designing | designing |
+| RGB134  | ok | ok | model_err | designing | designing |
+| RGB234  | ok | ok | model_er | designing | designing |
+| 指数数据集  | training | training | designing | designing | designing |
+| allbands  | wait | wait | model_err | designing | designing |
