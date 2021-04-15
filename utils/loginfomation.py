@@ -53,7 +53,11 @@ def DrawImage(img,pre,gt,pre_softmax,seg,logresult_dir=None,epoch=0,sig='train')
     '''自动动画绘制图像 需要提前 plt.ion() 初始化绘制环境'''
     '''img,pre,gt 数据全部都为numpy'''
     '''这里选择重新调整样本集的展示，将训练结果与实际结果合并展示成为一张图，并考虑写入训练日志中'''
-    img=np.transpose(img,(1,2,0)).astype(np.int)
+    img=np.transpose(img,(1,2,0))
+    if np.max(img)>1:
+        img=img.astype(np.int)
+    else:
+        img=img.astype(np.float)
     pre=np.transpose(pre,(1,2,0)).astype(np.float)[:,:,0].reshape(pre.shape[1],pre.shape[2],1)
     gt=np.transpose(gt,(1,2,0)).astype(np.float)[:,:,0].reshape(gt.shape[1],gt.shape[2],1)
     seg=np.transpose(seg,(1,2,0)).astype(np.float)[:,:,0].reshape(seg.shape[1],seg.shape[2],1)

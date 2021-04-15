@@ -8,5 +8,5 @@ def get_models(modelname,num_class=2,channels_num=3):
     elif modelname=='segnet':
         model=segnet(n_classes=num_class,in_channels=channels_num)
     elif modelname=='unet':
-        model=UNet(n_classes=num_class,in_ch=channels_num)
+        model=UNet(n_classes=num_class,n_channels=channels_num)
     return model

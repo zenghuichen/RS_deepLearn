@@ -119,7 +119,7 @@ class BandVI:
                 band_VI[:,:,t]=bandVI_num/(bandVI_deno+1)
                 t=t+1
         sample['img']=band_VI
-        sample['source_image']=band_VI.copy()
+        sample['source_image']=(band_VI[:,:,:3].copy()+1)/2
         return sample
 
 class OneHot:

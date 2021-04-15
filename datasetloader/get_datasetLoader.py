@@ -32,23 +32,12 @@ class data_prefetcher():
         except StopIteration:
             self.sample_output = None
             return
-        '''
+        
         with torch.cuda.stream(self.stream):
-            self.sample_output = = self.next_input.cuda(non_blocking=True)
-            self.next_target = self.next_target.cuda(non_blocking=True)
-            self.source_img=self.next_source_img.cuda(non_blocking=True)
-            # With Amp, it isn't necessary to manually convert data to half.
-            # if args.fp16:
-            #     self.next_input = self.next_input.half()
-            # else:
-            self.next_input = self.next_input.float()
-            self.next_target=self.next_target.long()
-            self.next_source_img=self.next_source_img.float()
-            #elf.next_input = self.next_input.sub_(self.mean).div_(self.std)
-        '''
-
+            self.sample_output = self.sample_output.cuda(non_blocking=True)
+    
     def next(self):
-        #torch.cuda.current_stream().wait_stream(self.stream)
+        torch.cuda.current_stream().wait_stream(self.stream)
         sample_output = self.sample_output
         self.preload()
         return sample_output
