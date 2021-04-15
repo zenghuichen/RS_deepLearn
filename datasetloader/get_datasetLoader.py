@@ -53,20 +53,25 @@ class data_prefetcher():
         self.preload()
         return sample_output
 
-def get_dataset(datasetName,dataSize='E256',batch_size=4,cropsize=(256,256),num_workers=8):
+def get_dataset(config_param,dataSize='E256',cropsize=(256,256)):
     '''
     创建对应的数据结构
     datasetName:数据名称 可以选择：RGB123 RGB124 allband RGB134 RGB234
     '''
+    datasetName=config_param["datasetName"]
+    batch_size=config_param["batch_size"] 
+    num_workers=config_param["num_work"]
+    VI_enable= config_param['VI_enable'] if 'VI_enable'  in config_param else False
+    
     dataset_path=getRootdirFromDatasetName(datasetName)
     E_path=dataset_path[dataSize]
     # 处理train训练数据集
     # 构建对应的数据结构
-    train_transpose=get_augmentations("train",cropsize,dataset_path,cls_num=dataset_path['cls_num'])
+    train_transpose=get_augmentations("train",cropsize,dataset_path,cls_num=dataset_path['cls_num'],VI_enable=VI_enable)
     E_train=gfNanChangDataset(E_path,splitchar='train',augmentations=train_transpose) 
     
     # 处理test数据集
-    test_transpose=get_augmentations('test',cropsize,dataset_path,cls_num=dataset_path['cls_num'])
+    test_transpose=get_augmentations('test',cropsize,dataset_path,cls_num=dataset_path['cls_num'],VI_enable=VI_enable)
     E_test=gfNanChangDataset(E_path,splitchar='test',augmentations=test_transpose) 
 
     # 创建对应的加载数据集   
@@ -75,7 +80,7 @@ def get_dataset(datasetName,dataSize='E256',batch_size=4,cropsize=(256,256),num_
     
     return E_train_loader,E_test_loader
 
-def get_augmentations(split,cropsize,E_path,cls_num):
+def get_augmentations(split,cropsize,E_path,cls_num,VI_enable=False):
     '''
     split 字符结构
     '''
@@ -84,7 +89,8 @@ def get_augmentations(split,cropsize,E_path,cls_num):
         pre_train_list=[
             RandomCrop(H_,W_),
             RandomFlip(),
-            Normalize(E_path["mean"],E_path["std"]),
+            BandVI(enable=VI_enable,minvalue=E_path['min'],maxvalue=E_path['max']),
+            Normalize(E_path["mean"],E_path["std"],VI_enable=VI_enable),
             OneHot(cls_num),
             ToTensor() ]
 
@@ -94,7 +100,8 @@ def get_augmentations(split,cropsize,E_path,cls_num):
         pre_val_list=[ 
             #RandomCrop(H_,W_),
             #RandomFlip(),
-            Normalize(E_path["mean"],E_path["std"]),
+            BandVI(enable=VI_enable,minvalue=E_path['min'],maxvalue=E_path['max']),
+            Normalize(E_path["mean"],E_path["std"],VI_enable=VI_enable),
             OneHot(cls_num),
             ToTensor() ]
         dataset_transpose=transforms.Compose(pre_val_list)

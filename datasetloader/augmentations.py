@@ -71,23 +71,57 @@ class Normalize:
     数据归一化，将数据归一化到的[-1,1]之间，平均值为0
 
     '''
-    def __init__(self,meanArr,stdArr):
+    def __init__(self,meanArr,stdArr,VI_enable=False):
         self.mean_arr=np.array(meanArr)
         self.std_arr= np.array(stdArr)
-        pass
+        self.VI_enable=VI_enable
 
     def __call__(self, sample):
-        image, seg, label,source_image = sample['img'], sample['seg'], sample['label'],sample['source_image']
-        image=(image-self.mean_arr)/self.std_arr # z-score 零-均值归一化
-        # 数据正则化 
-        # 这里假设当前平均值为4000， 最大值为+_20000
-        #image=(image-self.mean_arr)*0.01
-        #image=(image-4000)/20000 
-        sample['img']=image
-        sample['seg']=seg
-        sample['label']=label
-        sample['source_image']=source_image
+        if self.VI_enable: # 指数归一化
+            return sample
+        else:
+            image, seg, label,source_image = sample['img'], sample['seg'], sample['label'],sample['source_image']
+            image=(image-self.mean_arr)/self.std_arr # z-score 零-均值归一化
+            # 数据正则化 
+            # 这里假设当前平均值为4000， 最大值为+_20000
+            #image=(image-self.mean_arr)*0.01
+            #image=(image-4000)/20000 
+            sample['img']=image
+            sample['seg']=seg
+            sample['label']=label
+            sample['source_image']=source_image
+            return sample
+
+class BandVI:
+    '''
+    进行波段组合运算，注意这个方法只有在allbands时，可以启用
+    '''
+    def __init__(self,enable,minvalue,maxvalue):
+        self.enable=enable
+        self.minvalue=minvalue
+        self.maxvalue=maxvalue
+    
+    def __call__(self,sample):
+        if not self.enable:
+            return sample
+        bandimg=sample['img']
+        bands=bandimg.shape[2] # 假定此方法在维度转换之前
+        VI_num=int(bands*(bands-1)/2)
+        band_VI=np.zeros((bandimg.shape[0],bandimg.shape[1],VI_num),dtype=np.float32)
+        
+        # 缩放数据空间
+        bandimg=bandimg-self.minvalue
+        t=0
+        for i in range(bands):
+            for j in range(i+1,bands):
+                bandVI_deno=bandimg[:,:,i]+bandimg[:,:,j]
+                bandVI_num=bandimg[:,:,i]-bandimg[:,:,j]
+                band_VI[:,:,t]=bandVI_num/(bandVI_deno+1)
+                t=t+1
+        sample['img']=band_VI
+        sample['source_image']=band_VI.copy()
         return sample
+
 class OneHot:
     '''
     one-hot encoding 方法，方便计算损失函数

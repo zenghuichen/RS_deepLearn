@@ -17,6 +17,7 @@ from matplotlib import pyplot as plt
 from config.config_fcn import fcn_model_config_RGB123,fcn_model_config_RGB124,fcn_model_config_RGB134,fcn_model_config_RGB234
 from config.config_unet import unet_model_config_RGB123,unet_model_config_RGB124,unet_model_config_RGB134,unet_model_config_RGB234
 from config.config_segnet import segnet_model_config_RGB123,segnet_model_config_RGB124,segnet_model_config_RGB134,segnet_model_config_RGB234
+from config.config_VI import segnet_model_config_VI,unet_model_config_VI,fcn_model_config_VI
 import sys
 import threading
 from time import sleep
@@ -34,14 +35,11 @@ class DatasetLoader_Thread(threading.Thread):
     def getResult(self):
         return self.res
 
-def generator_datasetloader_iter(config_param):
-    E_train_loader_256, E_test_loader_256 = get_dataset(datasetName=config_param["datasetName"], dataSize='E256',
-                                                        batch_size=config_param["batch_size"],
-                                                        num_workers=config_param["num_work"])
-    trainloader_iter = data_prefetcher(E_train_loader_256)
-    testloader_iter = data_prefetcher(E_test_loader_256)
-    return trainloader_iter,testloader_iter,len(E_train_loader_256),len(E_test_loader_256)
-
+def generator_datasetloader_iter(config_param,dataSize):
+    E_train_loader, E_test_loader = get_dataset(config_param,dataSize=dataSize) 
+    trainloader_iter = data_prefetcher(E_train_loader)
+    testloader_iter = data_prefetcher(E_test_loader)
+    return trainloader_iter,testloader_iter,len(E_train_loader),len(E_test_loader)
 
 def loadconfig(config_param):
     '''
@@ -56,27 +54,23 @@ def loadconfig(config_param):
     if not config_param["checkpoint"] is None and  not os.path.exists(config_param["checkpoint"]):
         os.makedirs(config_param["checkpoint"])
 
-    # 构建数据集
-    E_train_loader_256,E_test_loader_256=get_dataset(datasetName=config_param["datasetName"],dataSize='E256',batch_size=config_param["batch_size"],num_workers=config_param["num_work"]) 
-    E_train_loader_512,E_test_loader_512=get_dataset(datasetName=config_param["datasetName"],dataSize='E512',batch_size=config_param["batch_size"],num_workers=config_param["num_work"]) 
     # 创建模型
-    model=get_models(config_param["modelName"],num_class=config_param['n_class'])
+    model=get_models(config_param["modelName"],num_class=config_param['n_class'],channels_num=config_param['channels'])
     optimizer=get_optimizer(model,config_param['optimizer'],lr=config_param['learn_rate'],momentum=0.9,weight_decay=0)
-    scheduler=get_scheduler(optimizer,config_param['scheduler'],mode="min",patience=16*len(E_train_loader_512)) # min对应loss
+    
     # 预加载模型
     startepoch=0
     best_iou=-1
     if not config_param['pre_model_path'] is None:
         startepoch,model,best_iou=load_ckpt(model, optimizer, config_param['pre_model_path'],'cuda')
     # 创建加载数据集
-    datasetLoader={'E256':[E_train_loader_256,E_test_loader_256],"E512":[E_train_loader_512,E_test_loader_512]}
     lossfunction=get_lossfunction(config_param)
     writer = SummaryWriter(config_param["writerpath"]) # 处理损失函数信息加载
     # 处理记录日文件
     logobject=loginfomation(config_param["modelName"],config_param["logpath"])
     ckpt_dir=config_param["checkpoint"]
     # 计算write
-    return datasetLoader,model,optimizer,scheduler,lossfunction,writer,logobject,startepoch,ckpt_dir,writer,best_iou
+    return model,optimizer,lossfunction,writer,logobject,startepoch,ckpt_dir,writer,best_iou
 
 
 def DrawImage(img,pre,gt,logresult_dir,epoch=0,sig='train'):
@@ -98,35 +92,39 @@ def DrawImage(img,pre,gt,logresult_dir,epoch=0,sig='train'):
 def train_main(config_param,muilt=True):
     '''构建一个迭代池 pool '''
 
-    datasetLoader, model, optimizer, scheduler, lossfunction, writer, logobject, startepoch, ckpt_dir, writer, best_iou = loadconfig(config_param)
+    model, optimizer, lossfunction, writer, logobject, startepoch, ckpt_dir, writer, best_iou = loadconfig(config_param)
     n_class=config_param['n_class']
     print("trainDataset=======> {}".format(config_param["datasetName"]))
     print("model {} =======>".format(config_param["modelName"]))
     model=model.cuda() # 使用显卡
     running_metrics = runningScore(n_class)
-    trainloader, testloader = datasetLoader['E256']
+
     ''' 训练时 '''
     global_step_train = 0
     global_step_test = 0
     best_iou=-1
     datasetname= config_param['datasetName']
-
-    trainloader_iter, testloader_iter, train_len, test_len=generator_datasetloader_iter(config_param)
+    
+    
+    trainloader_iter, testloader_iter, train_len, test_len=generator_datasetloader_iter(config_param,'E256')
     trainloader_ls=[trainloader_iter]
     testloader_ls=[testloader_iter]
+
+    scheduler=get_scheduler(optimizer,config_param['scheduler'],mode="min",patience=2*train_len) # min对应loss
 
     for epoch in range(startepoch,config_param["maxepoch"]):
         #trainloader_iter, testloader_iter, train_len, test_len = generator_datasetloader_iter(config_param)
         trainloader_iter=trainloader_ls.pop()
         testloader_iter=testloader_ls.pop()
         '''多线程构建数据集加载对象'''
-        thread_datasetloader_ls=[]
-        if len(trainloader_ls) <=1:
-            for ii in range(1):
-                dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,))
-                dataserLoader_iter_th.start()
-                thread_datasetloader_ls.append(dataserLoader_iter_th)
+        if epoch>config_param['E512Step']-1:
+            dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E512',))
+            dataserLoader_iter_th.start()
+        else:
+            dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E256',))
+            dataserLoader_iter_th.start()
 
+        '''模型训练阶段'''
         start = time.time()
         model.train()
         strlines = []
@@ -157,7 +155,7 @@ def train_main(config_param,muilt=True):
             print("\r{}".format(strlines[-1]),end="")
             # writer 加载数据
             if not writer is None:
-                WriterSummary(writer, 'train', loss, optimizer.param_groups[0]['lr'], source_img, outputs, labels,seg,global_step_train, image_step=600)
+                WriterSummary(writer, 'train', loss, optimizer.param_groups[0]['lr'], source_img, outputs, labels,seg,global_step_train, image_step=100)
             # 日常日志记录
             global_step_train=global_step_train+1
             sample = trainloader_iter.next()
@@ -199,7 +197,7 @@ def train_main(config_param,muilt=True):
                 print("\r{}".format(strlines[-1]), end="")
                 # writer 加载数据
                 if not writer is None:
-                    WriterSummary(writer, 'test', loss, 0.01, source_img, outputs, label, seg,global_step_test,image_step=60)
+                    WriterSummary(writer, 'test', loss, 0.01, source_img, outputs, label, seg,global_step_test,image_step=30)
                 # 日常日志记录
                 global_step_test = global_step_test + 1
                 sample = testloader_iter.next()
@@ -216,7 +214,7 @@ def train_main(config_param,muilt=True):
         '''获得加载集'''
 
 
-        for dataserLoader_iter_th in thread_datasetloader_ls:
+        if not dataserLoader_iter_th is None:
             dataserLoader_iter_th.join()
             trainloader_iter, testloader_iter, train_len, test_len=dataserLoader_iter_th.getResult()
             trainloader_ls.append(trainloader_iter)
@@ -256,7 +254,7 @@ if __name__=="__main__":
     config_params=[#fcn_model_config_RGB123,fcn_model_config_RGB124,fcn_model_config_RGB134,fcn_model_config_RGB234,
                 #unet_model_config_RGB123,unet_model_config_RGB124,unet_model_config_RGB134,unet_model_config_RGB234,
                 #segnet_model_config_RGB123,segnet_model_config_RGB124,segnet_model_config_RGB134,segnet_model_config_RGB234,
-                segnet_model_config_RGB124,
+                segnet_model_config_VI,unet_model_config_VI,fcn_model_config_VI, # 归一化指数
                  ]
     for config_param in config_params:
         #try:

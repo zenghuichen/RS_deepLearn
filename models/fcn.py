@@ -155,7 +155,7 @@ class FCNs(nn.Module):
 
 
 class ResNet50(ResNet):
-    def __init__(self,pretrained=True):
+    def __init__(self,input_channels=3,pretrained=True):
         super().__init__(Bottleneck, [3, 4, 6, 3])
         #self.maxpool = nn.MaxPool2d(kernel_size=3, stride=1, padding=1)
         if pretrained:
@@ -163,6 +163,7 @@ class ResNet50(ResNet):
             state_dict =models.utils.load_state_dict_from_url(mdoel_url)
             self.load_state_dict(state_dict)
         # 
+        self.conv1 = nn.Conv2d(input_channels, self.inplanes, kernel_size=7, stride=2, padding=3,bias=False)
         self.outConv2=nn.Conv2d(256,128,kernel_size=1)
         self.outConv3=nn.Conv2d(512,256,kernel_size=1)
         self.outConv4=nn.Conv2d(1024,512,kernel_size=1)
