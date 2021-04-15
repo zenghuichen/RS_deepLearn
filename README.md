@@ -13,12 +13,13 @@
 第五章的关键问题
 + 解耦结构的实现
 
-需要训练的数据集
+需要训练的数据集与模型
 |  数据集   | fcn  | unet| segnet | superPixel-encodingNet | SPE-decouple-Net|
 |  ----  | ----  |  ----  |  ----  |  ----  |  ----  |
 | RGB123  | ok | ok | model_err | designing | designing |
 | RGB124  | ok | ok | model_err | designing | designing |
 | RGB134  | ok | ok | model_err | designing | designing |
 | RGB234  | ok | ok | model_er | designing | designing |
-| 指数数据集  | training | training | designing | designing | designing |
+| 指数数据集  | training | training | model_er | designing | designing |
 | allbands  | wait | wait | model_err | designing | designing |
+
