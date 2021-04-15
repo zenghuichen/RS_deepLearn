@@ -8,7 +8,7 @@ fcn_model_config_VI={
     "modelName":"fcn",
     'n_class':2,
     'channels':6,
-    'pre_model_path':None,#'\media\gis\databackup\ayc\modellist\result\checkpoint\ckpt_fcn_epoch_860.pth',# 预加载模型
+    'pre_model_path':None,#'/media/gis/databackup/ayc/modellist/result/checkpoint/ckpt_fcn_epoch_860.pth',# 预加载模型
     "learn_rate":0.01,
     'E512Step':10,
     "maxepoch":500,
@@ -18,16 +18,16 @@ fcn_model_config_VI={
     "batch_size":8,
     "num_work":8,
     'VI_enable':True,
-    "writerpath":r"E:\zenghui\VI_fcn_result\writerlog",# writerpath地址路径
-    "logpath":r"E:\zenghui\VI_fcn_result\log",
-    'checkpoint':r"E:\zenghui\VI_fcn_result\checkpoint"
+    "writerpath":"/home/gis/gisdata/databackup/ayc/modellist/VI_fcn_result/writerlog",# writerpath地址路径
+    "logpath":"/home/gis/gisdata/databackup/ayc/modellist/VI_fcn_result/log",
+    'checkpoint':"/home/gis/gisdata/databackup/ayc/modellist/VI_fcn_result/checkpoint"
 }
 unet_model_config_VI={
     'datasetName':"VI",
     "modelName":"unet",
     'n_class':2,
     'channels':6,
-    'pre_model_path':None,#'\media\gis\databackup\ayc\modellist\result\checkpoint\ckpt_unet_epoch_860.pth',# 预加载模型
+    'pre_model_path':None,#'/media/gis/databackup/ayc/modellist/result/checkpoint/ckpt_unet_epoch_860.pth',# 预加载模型
     "learn_rate":0.01,
     'E512Step':10,
     "maxepoch":500,
@@ -37,16 +37,16 @@ unet_model_config_VI={
     "batch_size":8,
     "num_work":8,
     'VI_enable':True,
-    "writerpath":r"E:\zenghui\VI_unet_result\writerlog",# writerpath地址路径
-    "logpath":r"E:\zenghui\VI_unet_result\log",
-    'checkpoint':r"E:\zenghui\VI_unet_result\checkpoint"
+    "writerpath":"/home/gis/gisdata/databackup/ayc/modellist/VI_unet_result/writerlog",# writerpath地址路径
+    "logpath":"/home/gis/gisdata/databackup/ayc/modellist/VI_unet_result/log",
+    'checkpoint':"/home/gis/gisdata/databackup/ayc/modellist/VI_unet_result/checkpoint"
 }
 segnet_model_config_VI={
     'datasetName':"VI",
     "modelName":"segnet",
     'n_class':2,
     'channels':6,
-    'pre_model_path':None,#'\media\gis\databackup\ayc\modellist\result\checkpoint\ckpt_fcn_epoch_860.pth',# 预加载模型
+    'pre_model_path':None,#'/media/gis/databackup/ayc/modellist/result/checkpoint/ckpt_fcn_epoch_860.pth',# 预加载模型
     "learn_rate":0.01,
     'E512Step':10,
     "maxepoch":500,
@@ -56,7 +56,7 @@ segnet_model_config_VI={
     "batch_size":8,
     "num_work":8,
     'VI_enable':True,
-    "writerpath":r"E:\zenghui\VI_segnet_result\writerlog",# writerpath地址路径
-    "logpath":r"E:\zenghui\VI_segnet_result\log",
-    'checkpoint':r"E:\zenghui\VI_segnet_result\checkpoint"
+    "writerpath":"/home/gis/gisdata/databackup/ayc/modellist/VI_segnet_result/writerlog",# writerpath地址路径
+    "logpath":"/home/gis/gisdata/databackup/ayc/modellist/VI_segnet_result/log",
+    'checkpoint':"/home/gis/gisdata/databackup/ayc/modellist/VI_segnet_result/checkpoint"
 }
