@@ -33,11 +33,11 @@ class data_prefetcher():
             self.sample_output = None
             return
         
-        with torch.cuda.stream(self.stream):
-            self.sample_output = self.sample_output.cuda(non_blocking=True)
+        #with torch.cuda.stream(self.stream):
+        #    self.sample_output = self.sample_output.cuda(non_blocking=True)
     
     def next(self):
-        torch.cuda.current_stream().wait_stream(self.stream)
+        #torch.cuda.current_stream().wait_stream(self.stream)
         sample_output = self.sample_output
         self.preload()
         return sample_output

@@ -6,5 +6,6 @@
 *.tif
 *.png
 *.zip
+*.tfevents.*
 /result/writerlog/*
 /model_hastrained_log/*
