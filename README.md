@@ -43,7 +43,7 @@
   - [ ] 超像素融合结构
   - [ ] 损失函数设计
 - [ ] 实验结果与分析
-  - [ ] 训练参数
+  - [ ] 训练参数介绍
   - [ ] 各个数据集中的网络模型的训练损失图
   - [ ] 各个数据集中的网络模型的精度变化图
   - [ ] 各个数据集中训练得到的网络效果对比图
@@ -75,7 +75,7 @@
 | RGB124  | ok | ok | model_err | designing | designing |
 | RGB134  | ok | ok | model_err | designing | designing |
 | RGB234  | ok | ok | model_er | designing | designing |
-| 指数数据集  | training | ok | model_er | designing | designing |
+| 指数数据集  | trainErr | ok | model_er | designing | designing |
 | allbands  | wait | wait | model_err | designing | designing |
 
 ## 文章基本结构图
