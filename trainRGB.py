@@ -117,13 +117,14 @@ def train_main(config_param,muilt=True):
         trainloader_iter=trainloader_ls.pop()
         testloader_iter=testloader_ls.pop()
         '''多线程构建数据集加载对象'''
+        if sys.platform=="win32":
+            if epoch>config_param['E512Step']-1:
+                dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E512',))
+                dataserLoader_iter_th.start()
+            else:
+                dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E256',))
+                dataserLoader_iter_th.start()
 
-        if epoch>config_param['E512Step']-1:
-            dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E512',))
-            dataserLoader_iter_th.start()
-        else:
-            dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E256',))
-            dataserLoader_iter_th.start()
 
         '''模型训练阶段'''
         start = time.time()
@@ -144,7 +145,7 @@ def train_main(config_param,muilt=True):
                 loss=lossfunction(outputs,labels.cuda())
                 if torch.isnan(loss):
                     print("because loss is nan,the process of train must stop,and the program also exit.")
-                    sys.exit(0)
+                    return "nan"
                 #loss=lossfunction(F.log_softmax(outputs),label.cuda())
             else:
                 pass
@@ -212,16 +213,20 @@ def train_main(config_param,muilt=True):
         logobject.logValInfo(epoch, scores_val, class_iou_val)
         if epoch % 10 == 0:
             save_ckpt(ckpt_dir, model, config_param["modelName"], optimizer, epoch, best_iou, config_param['datasetName'])
-        '''获得加载集
-        trainloader_iter, testloader_iter, train_len, test_len=generator_datasetloader_iter(config_param,'E256')
-        trainloader_ls=[trainloader_iter]
-        testloader_ls=[testloader_iter]        
-        ''' # windows
-        if not dataserLoader_iter_th is None:
-            dataserLoader_iter_th.join()
-            trainloader_iter, testloader_iter, train_len, test_len=dataserLoader_iter_th.getResult()
-            trainloader_ls.append(trainloader_iter)
-            testloader_ls.append(testloader_iter)
+
+        if sys.platform =="linux":
+            if epoch>config_param['E512Step']-1:
+                trainloader_iter, testloader_iter, train_len, test_len=generator_datasetloader_iter(config_param,'E512')
+            else:
+                trainloader_iter, testloader_iter, train_len, test_len=generator_datasetloader_iter(config_param,'E256')
+            trainloader_ls=[trainloader_iter]
+            testloader_ls=[testloader_iter]        
+        elif sys.platform=="win32":
+            if not dataserLoader_iter_th is None:
+                dataserLoader_iter_th.join()
+                trainloader_iter, testloader_iter, train_len, test_len=dataserLoader_iter_th.getResult()
+                trainloader_ls.append(trainloader_iter)
+                testloader_ls.append(testloader_iter)
 
 
     writer.close()
@@ -258,14 +263,21 @@ if __name__=="__main__":
     config_params=[#fcn_model_config_RGB123,fcn_model_config_RGB124,fcn_model_config_RGB134,fcn_model_config_RGB234,
                 #unet_model_config_RGB123,unet_model_config_RGB124,unet_model_config_RGB134,unet_model_config_RGB234,
                 #segnet_model_config_RGB123,segnet_model_config_RGB124,segnet_model_config_RGB134,segnet_model_config_RGB234,
-                unet_model_config_VI,fcn_model_config_VI,segnet_model_config_VI, # 归一化指数
+                #unet_model_config_VI,
+                fcn_model_config_VI,
+                #segnet_model_config_VI, # 归一化指数
                  ]
     for config_param in config_params:
-        #try:
-            train_main(config_param,muilt=True)
-        #except:
-            #errmodels.append(config_param)
-            #print("the loss of train is nan !!!! model Name:{} , Dataset Name：{}".format(config_param["modelName"],config_param['datasetName']))
+        print("当前工作路径为：{},部分参数修正为".format(os.getcwd()))
+        # 参数路径修复
+        for i in ["writerpath","logpath",'checkpoint']:
+            writerpath=config_param[i]
+            config_param[i]=os.path.join(os.getcwd(),config_param[i])
+            print("{}: {} ===> {}".format(i,writerpath,config_param[i]))
+        trrainsig=train_main(config_param,muilt=True)
+        if trrainsig =="nan":
+            errmodels.append(config_param)
+            print("the loss of train is nan !!!! model Name:{} , Dataset Name：{}".format(config_param["modelName"],config_param['datasetName']))
     plt.close()
     print("出现问题的模型，需要单独训练，并调整相应的loss值缩放系数")
     for config_param in errmodels:
