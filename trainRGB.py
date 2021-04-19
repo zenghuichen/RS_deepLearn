@@ -156,7 +156,7 @@ def train_main(config_param,muilt=True):
             print("\r{}".format(strlines[-1]),end="")
             # writer 加载数据
             if not writer is None:
-                WriterSummary(writer, 'train', loss, optimizer.param_groups[0]['lr'], source_img, outputs, labels,seg,global_step_train, image_step=100)
+                WriterSummary(writer, 'train', loss, optimizer.param_groups[0]['lr'], source_img, outputs, labels,seg,global_step_train, image_step=200)
             # 日常日志记录
             global_step_train=global_step_train+1
             sample = trainloader_iter.next()
@@ -198,7 +198,7 @@ def train_main(config_param,muilt=True):
                 print("\r{}".format(strlines[-1]), end="")
                 # writer 加载数据
                 if not writer is None:
-                    WriterSummary(writer, 'test', loss, 0.01, source_img, outputs, label, seg,global_step_test,image_step=30)
+                    WriterSummary(writer, 'test', loss, 0.01, source_img, outputs, label, seg,global_step_test,image_step=60)
                 # 日常日志记录
                 global_step_test = global_step_test + 1
                 sample = testloader_iter.next()
