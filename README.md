@@ -75,7 +75,7 @@
 | RGB124  | ok | ok | model_err | designing | designing |
 | RGB134  | ok | ok | model_err | designing | designing |
 | RGB234  | ok | ok | model_er | designing | designing |
-| 指数数据集  | trainErr | ok | model_er | designing | designing |
+| 指数数据集  | trainErr | ok | ok | designing | designing |
 | allbands  | wait | wait | model_err | designing | designing |
 
 ## 文章基本结构图
