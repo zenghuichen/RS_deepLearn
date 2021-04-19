@@ -17,30 +17,35 @@ from datasetloader.augmentations import *
 class data_prefetcher():
     def __init__(self, loader):
         self.loader = iter(loader)
-        self.stream = torch.cuda.Stream()
-        self.mean = torch.tensor([0.485 * 255, 0.456 * 255, 0.406 * 255]).cuda().view(1, 3, 1, 1)
-        self.std = torch.tensor([0.229 * 255, 0.224 * 255, 0.225 * 255]).cuda().view(1, 3, 1, 1)
         # With Amp, it isn't necessary to manually convert data to half.
         # if args.fp16:
         #     self.mean = self.mean.half()
         #     self.std = self.std.half()
-        self.preload()
+        if sys.platform=='win32':
+            self.preload()
+        elif sys.platform=='linux':
+            pass
 
     def preload(self):
         try:
             self.sample_output= next(self.loader)
         except StopIteration:
             self.sample_output = None
-            return
-        
+            return None
         #with torch.cuda.stream(self.stream):
         #    self.sample_output = self.sample_output.cuda(non_blocking=True)
-    
     def next(self):
+        if sys.platform=='win32':
         #torch.cuda.current_stream().wait_stream(self.stream)
-        sample_output = self.sample_output
-        self.preload()
-        return sample_output
+            sample_output = self.sample_output
+            self.preload()
+            return sample_output
+        elif sys.platform=='linux':
+            try:
+                return next(self.loader)
+            except StopIteration:
+                return None
+
 
 def get_dataset(config_param,dataSize='E256',cropsize=(256,256)):
     '''
@@ -64,7 +69,7 @@ def get_dataset(config_param,dataSize='E256',cropsize=(256,256)):
     E_test=gfNanChangDataset(E_path,splitchar='test',augmentations=test_transpose) 
 
     # 创建对应的加载数据集   
-    E_train_loader=torchdata.DataLoader(E_train,batch_size=batch_size,num_workers=num_workers,shuffle=True,drop_last=True)
+    E_train_loader=torchdata.DataLoader(E_train,batch_size=batch_size,num_workers=num_workers,shuffle=False,drop_last=True)
     E_test_loader=torchdata.DataLoader(E_test,batch_size=batch_size,num_workers=num_workers,shuffle=False,drop_last=True)
     
     return E_train_loader,E_test_loader
@@ -75,24 +80,42 @@ def get_augmentations(split,cropsize,E_path,cls_num,VI_enable=False):
     '''
     if split=="train":
         H_,W_=cropsize
-        pre_train_list=[
-            RandomCrop(H_,W_),
-            RandomFlip(),
-            BandVI(enable=VI_enable,minvalue=E_path['min'],maxvalue=E_path['max']),
-            Normalize(E_path["mean"],E_path["std"],VI_enable=VI_enable),
-            OneHot(cls_num),
-            ToTensor() ]
+        if 'min' in E_path:
+            pre_train_list=[
+                RandomCrop(H_,W_),
+                RandomFlip(),
+                BandVI(enable=VI_enable,minvalue=E_path['min'],maxvalue=E_path['max']),
+                Normalize(E_path["mean"],E_path["std"],VI_enable=VI_enable),
+                OneHot(cls_num),
+                ToTensor() ]
+        else:
+                pre_train_list=[
+                RandomCrop(H_,W_),
+                RandomFlip(),
+                #BandVI(enable=VI_enable,minvalue=E_path['min'],maxvalue=E_path['max']),
+                Normalize(E_path["mean"],E_path["std"],VI_enable=VI_enable),
+                OneHot(cls_num),
+                ToTensor() ]
 
         dataset_transpose=transforms.Compose(pre_train_list)
     else:
         H_,W_=cropsize
-        pre_val_list=[ 
-            #RandomCrop(H_,W_),
-            #RandomFlip(),
-            BandVI(enable=VI_enable,minvalue=E_path['min'],maxvalue=E_path['max']),
-            Normalize(E_path["mean"],E_path["std"],VI_enable=VI_enable),
-            OneHot(cls_num),
-            ToTensor() ]
+        if 'min' in E_path:
+            pre_val_list=[ 
+                #RandomCrop(H_,W_),
+                #RandomFlip(),
+                BandVI(enable=VI_enable,minvalue=E_path['min'],maxvalue=E_path['max']),
+                Normalize(E_path["mean"],E_path["std"],VI_enable=VI_enable),
+                OneHot(cls_num),
+                ToTensor() ]
+        else:
+            pre_val_list=[ 
+                #RandomCrop(H_,W_),
+                #RandomFlip(),
+                #BandVI(enable=VI_enable,minvalue=E_path['min'],maxvalue=E_path['max']),
+                Normalize(E_path["mean"],E_path["std"],VI_enable=VI_enable),
+                OneHot(cls_num),
+                ToTensor() ]
         dataset_transpose=transforms.Compose(pre_val_list)
     return dataset_transpose
 

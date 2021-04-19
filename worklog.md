@@ -168,3 +168,7 @@ fcn_model_config_RGB234={
 + Selective search for object recognition 
 + classification with an edge：improving semantic segmentation with boundary detection
 + Multilevel Cloud Detection in Remote Sensing Images Based on Deep Learning
+2021 4.19 10:14 
++ 调整了整个代码的架构，使用sys.platform 获得软件执行平台，并以此选择相关策略，但是因为考虑到多线程的调用问题，这里没有单独写成一个类，处理相关问题。
++ 修正了config参数的变量名错误。
++ 碰到一个模型训练时被系统杀死的bug，经检查不是模型的问题，不是数据集本身的问题，不是损失函数的问题，猜测是模型加载时出了问题

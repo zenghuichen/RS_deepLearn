@@ -36,10 +36,14 @@ class DatasetLoader_Thread(threading.Thread):
         return self.res
 
 def generator_datasetloader_iter(config_param,dataSize):
-    E_train_loader, E_test_loader = get_dataset(config_param,dataSize=dataSize) 
-    trainloader_iter = data_prefetcher(E_train_loader)
-    testloader_iter = data_prefetcher(E_test_loader)
-    return trainloader_iter,testloader_iter,len(E_train_loader),len(E_test_loader)
+    if sys.platform=="win32":
+        E_train_loader, E_test_loader = get_dataset(config_param,dataSize=dataSize) 
+        trainloader_iter = data_prefetcher(E_train_loader)
+        testloader_iter = data_prefetcher(E_test_loader)
+        return trainloader_iter,testloader_iter,len(E_train_loader),len(E_test_loader)
+    elif sys.platform=='linux':
+        E_train_loader, E_test_loader = get_dataset(config_param,dataSize=dataSize)
+        return  E_train_loader,E_test_loader,len(E_train_loader),len(E_test_loader)
 
 def loadconfig(config_param):
     '''
@@ -54,7 +58,7 @@ def loadconfig(config_param):
     if not config_param["checkpoint"] is None and  not os.path.exists(config_param["checkpoint"]):
         os.makedirs(config_param["checkpoint"])
 
-    # 创建模型
+    # 创建模型            
     model=get_models(config_param["modelName"],num_class=config_param['n_class'],channels_num=config_param['channels'])
     optimizer=get_optimizer(model,config_param['optimizer'],lr=config_param['learn_rate'],momentum=0.9,weight_decay=0)
     
@@ -89,7 +93,7 @@ def DrawImage(img,pre,gt,logresult_dir,epoch=0,sig='train'):
     plt.pause(0.01) # 停留1s
     plt.savefig(os.path.join(logresult_dir,"sig_{}".format(epoch)))
 
-def train_main(config_param,muilt=True):
+def train_main_win32(config_param,muilt=True):
     '''构建一个迭代池 pool '''
 
     model, optimizer, lossfunction, writer, logobject, startepoch, ckpt_dir, writer, best_iou = loadconfig(config_param)
@@ -125,7 +129,6 @@ def train_main(config_param,muilt=True):
                 dataserLoader_iter_th=DatasetLoader_Thread(generator_datasetloader_iter,(config_param,'E256',))
                 dataserLoader_iter_th.start()
 
-
         '''模型训练阶段'''
         start = time.time()
         model.train()
@@ -157,6 +160,7 @@ def train_main(config_param,muilt=True):
             print("\r{}".format(strlines[-1]),end="")
             # writer 加载数据
             if not writer is None:
+                #pass
                 WriterSummary(writer, 'train', loss, optimizer.param_groups[0]['lr'], source_img, outputs, labels,seg,global_step_train, image_step=200)
             # 日常日志记录
             global_step_train=global_step_train+1
@@ -233,6 +237,127 @@ def train_main(config_param,muilt=True):
     print("===> {} over".format(config_param["datasetName"]))
 
 
+def train_main_ubuntu(config_param,muilt=True):
+
+    model, optimizer, lossfunction, writer, logobject, startepoch, ckpt_dir, writer, best_iou = loadconfig(config_param)
+    n_class=config_param['n_class']
+    print("trainDataset=======> {}".format(config_param["datasetName"]))
+    print("model {} =======>".format(config_param["modelName"]))
+    model=model.cuda() # 使用显卡
+    running_metrics = runningScore(n_class)
+
+    ''' 训练时 '''
+    global_step_train = 0
+    global_step_test = 0
+    best_iou=-1
+    datasetname= config_param['datasetName']
+    
+    trainloader_256, testloader_256, train_len_256, test_len_256=generator_datasetloader_iter(config_param,'E256')
+    trainloader_512, testloader_512, train_len_512, test_len_512=generator_datasetloader_iter(config_param,'E512')
+
+    scheduler=get_scheduler(optimizer,config_param['scheduler'],mode="min",patience=2*train_len_256) # min对应loss
+
+    for epoch in range(startepoch,config_param["maxepoch"]):
+
+        '''模型训练阶段'''
+        start = time.time()
+        model.train()
+        strlines = []
+        '''数据集加载'''
+        if epoch>config_param['E512Step']:
+            train_loader=trainloader_512
+            test_loader=testloader_512
+            datalen = train_len_512
+        else:
+            train_loader=trainloader_256
+            test_loader=testloader_256
+            datalen = train_len_256
+
+        for i,sample in enumerate(train_loader):
+            end=time.time()
+            image,labels,source_img,seg=sample['img'], sample['label'],sample["source_image"],sample['seg']
+            images=image.cuda()
+            # 模型训练
+            optimizer.zero_grad()
+            outputs = model(images)
+            if muilt:
+                loss=lossfunction(outputs,labels.cuda())
+                if torch.isnan(loss):
+                    print("because loss is nan,the process of train must stop,and the program also exit.")
+                    return "nan"
+            else:
+                pass
+            loss.backward()
+            optimizer.step()
+            scheduler.step(loss)  # 调整学习率
+            # 输出结果
+            strlines.append("{} train epoch:{},iter:{}/{},loss:{},learn_rate:{},itertime:{}".format(datasetname,epoch,i,datalen,loss.detach().cpu().data, optimizer.param_groups[0]['lr'],time.time()-end))
+            print("\r{}".format(strlines[-1]),end="")
+            # writer 加载数据
+            if not writer is None:
+                #pass
+                WriterSummary(writer, 'train', loss, optimizer.param_groups[0]['lr'], source_img, outputs, labels,seg,global_step_train, image_step=200)
+            # 日常日志记录
+            global_step_train=global_step_train+1
+
+        print("\nepoch:{},times:{}".format(epoch,time.time()-start))
+        logobject.logTrainlog(strlines)
+
+        ''' 模型验证阶段'''
+        start = time.time()
+        model.eval()
+        strlines = []
+
+        with torch.no_grad():
+            for i,sample in enumerate(test_loader):
+                end = time.time()
+                image,label,source_img,seg=sample['img'],  sample['label'],sample["source_image"],sample['seg']
+                images = image.cuda()
+                outputs = model(image.cuda())
+                if muilt:
+                    loss = lossfunction(outputs, label.cuda())
+                else:
+                    pass
+                _, _, image_h, image_w = label.shape
+
+                pred = F.softmax(outputs).cpu()  # 因为原始模型中结尾 没有softmax
+
+                # pred = torch.argmax(pred, dim=1).cpu()
+                gt = label.data.cpu()
+                # 统计损失值
+                running_metrics.update(gt.numpy(), pred.numpy() > 0.5)
+                strlines.append(
+                    "{}  test epoch:{},iter:{}/{},loss:{},itertime:{}".format(datasetname, epoch, i, datalen,
+                                                                              loss.detach().cpu().data,
+                                                                              time.time() - end))
+                print("\r{}".format(strlines[-1]), end="")
+                # writer 加载数据
+                if not writer is None:
+                    WriterSummary(writer, 'test', loss, 0.01, source_img, outputs, label, seg,global_step_test,image_step=60)
+                # 日常日志记录
+                global_step_test = global_step_test + 1
+            print("\nepoch:{},times:{}".format(epoch, time.time() - start))
+            logobject.logtestlog(strlines)
+
+        '''模型度量阶段'''
+        scores_val,class_iou_val,best_iou,running_metrics=save_model(ckpt_dir,epoch,model,config_param["modelName"],optimizer,running_metrics,best_iou,config_param['datasetName'])
+        WriterAccurary(writer,scores_val,class_iou_val,epoch)
+        ''' 记录模型'''
+        logobject.logValInfo(epoch, scores_val, class_iou_val)
+        if epoch % 10 == 0:
+            save_ckpt(ckpt_dir, model, config_param["modelName"], optimizer, epoch, best_iou, config_param['datasetName'])
+
+    writer.close()
+    print("===> {} over".format(config_param["datasetName"]))
+
+
+def train_main(config_param,muilt=True):
+    if sys.platform=="win32":
+        train_main_win32(config_param,muilt=muilt)
+    elif sys.platform=="linux":
+        train_main_ubuntu(config_param,muilt=muilt)
+
+
 def save_model(ckpt_dir,epoch,model,modelName,optimizer,running_metrics,best_iou,datasetName,issaveBestIOU=False):
     scores_val, class_iou_val = running_metrics.get_scores()
     for k, v in scores_val.items():
@@ -260,11 +385,11 @@ if __name__=="__main__":
     #mainTrain(config_param,isTest=True)
     errmodels=[]
     # 修改为训练代码
-    config_params=[#fcn_model_config_RGB123,fcn_model_config_RGB124,fcn_model_config_RGB134,fcn_model_config_RGB234,
+    config_params=[fcn_model_config_RGB123,fcn_model_config_RGB124,fcn_model_config_RGB134,fcn_model_config_RGB234,
                 #unet_model_config_RGB123,unet_model_config_RGB124,unet_model_config_RGB134,unet_model_config_RGB234,
                 #segnet_model_config_RGB123,segnet_model_config_RGB124,segnet_model_config_RGB134,segnet_model_config_RGB234,
                 #unet_model_config_VI,
-                fcn_model_config_VI,
+                #fcn_model_config_VI,
                 #segnet_model_config_VI, # 归一化指数
                  ]
     for config_param in config_params:
