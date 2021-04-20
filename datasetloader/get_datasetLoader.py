@@ -47,7 +47,7 @@ class data_prefetcher():
                 return None
 
 
-def get_dataset(config_param,dataSize='E256',cropsize=(256,256)):
+def get_dataset(config_param,dataSize='E256',cropsize=(256,256),rootdir=''):
     '''
     创建对应的数据结构
     datasetName:数据名称 可以选择：RGB123 RGB124 allband RGB134 RGB234
@@ -58,6 +58,9 @@ def get_dataset(config_param,dataSize='E256',cropsize=(256,256)):
     VI_enable= config_param['VI_enable'] if 'VI_enable'  in config_param else False
     
     dataset_path=getRootdirFromDatasetName(datasetName)
+    if rootdir=='':
+        rootdir=os.getcwd()
+        dataset_path[dataSize]=os.path.join(rootdir,dataset_path[dataSize])
     E_path=dataset_path[dataSize]
     # 处理train训练数据集
     # 构建对应的数据结构
