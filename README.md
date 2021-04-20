@@ -6,7 +6,7 @@
 
 ## 第三章
 ### 需要解决的问题
-- [ ] 基于RGB数据集原始模型的训练
+- [x] 基于RGB数据集原始模型的训练
 - [ ] SLIC 超像素算法实现
 - [ ] quick shift算法结构
 - [ ] 利用超像素优化神经网络的输出
@@ -71,11 +71,11 @@
 ## 需要训练的数据集与模型
 |  数据集   | fcn  | unet| segnet | superPixel-encodingNet | SPE-decouple-Net|
 |  ----  | ----  |  ----  |  ----  |  ----  |  ----  |
-| RGB123  | ok | ok | model_err | designing | designing |
-| RGB124  | ok | ok | model_err | designing | designing |
-| RGB134  | ok | ok | model_err | designing | designing |
-| RGB234  | ok | ok | model_er | designing | designing |
-| 指数数据集  | trainErr | ok | ok | designing | designing |
+| RGB123  | ok | ok | ok | designing | designing |
+| RGB124  | ok | ok | ok | designing | designing |
+| RGB134  | ok | ok | ok | designing | designing |
+| RGB234  | ok | ok | ok | designing | designing |
+| 指数数据集  | ok | ok | ok | designing | designing |
 | allbands  | wait | wait | model_err | designing | designing |
 
 ## 文章基本结构图
