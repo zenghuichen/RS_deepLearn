@@ -391,6 +391,7 @@ if __name__=="__main__":
                 #unet_model_config_VI,
                 #fcn_model_config_VI,
                 #segnet_model_config_VI, # 归一化指数
+                
                  ]
     for config_param in config_params:
         print("当前工作路径为：{},部分参数修正为".format(os.getcwd()))
